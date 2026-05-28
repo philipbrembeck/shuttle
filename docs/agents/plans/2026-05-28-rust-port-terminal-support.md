@@ -314,8 +314,8 @@ Add both approved Ghostty strategies: command/open-based launch and AppleScript 
 - [x] Pass command, title, and supported config/profile arguments through `open --args` with safe argument handling and no shell interpolation.
 - [x] Implement `GhosttyAppleScript` strategy using Ghostty 1.3+ AppleScript support for `new`, `tab`, and `current` where the scripting API supports them.
 - [x] Add detection/error messaging for missing Ghostty, unsupported Ghostty AppleScript version, or Apple Events denial.
-- [ ] Add default config examples for `ghostty-open` and `ghostty-applescript`.
-- [ ] Document when to use `ghostty-open` versus `ghostty-applescript`.
+- [x] Add default config examples for `ghostty-open` and `ghostty-applescript`.
+- [x] Document when to use `ghostty-open` versus `ghostty-applescript`.
 
 **Automated Verification**:
 - [x] `cargo check` passes.
@@ -343,8 +343,8 @@ Add both approved cmux strategies: CLI integration and Unix socket JSON API inte
 - [x] Implement `CmuxSocket` strategy using newline-delimited JSON requests over Unix domain socket.
 - [x] Add configurable cmux socket path with default `/tmp/cmux.sock` and environment override via `CMUX_SOCKET_PATH`.
 - [x] Implement socket calls for workspace creation/selection/current lookup and surface text sending needed by Shuttle commands.
-- [ ] Document cmux access mode requirements, including `CMUX_SOCKET_MODE=allowAll` when external local processes need socket access.
-- [ ] Add default config examples for `cmux-cli` and `cmux-socket`.
+- [x] Document cmux access mode requirements, including `CMUX_SOCKET_MODE=allowAll` when external local processes need socket access.
+- [x] Add default config examples for `cmux-cli` and `cmux-socket`.
 
 **Automated Verification**:
 - [x] `cargo check` passes.

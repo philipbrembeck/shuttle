@@ -27,6 +27,10 @@ Supported strategy values:
 - `socket`
 - `applescript`
 
+Use `ghostty-open` for simple new-window launches that can be expressed as `open -na Ghostty.app --args ...`. Use `ghostty-applescript` when you need tab/current-window behavior and have Ghostty 1.3+ plus macOS Automation permission.
+
+For cmux socket access, enable external local access in cmux when required, for example with `CMUX_SOCKET_MODE=allowAll`, and set `CMUX_SOCKET_PATH` if your socket is not `/tmp/cmux.sock`.
+
 Example per-host override:
 
 ```json

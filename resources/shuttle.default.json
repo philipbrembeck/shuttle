@@ -23,8 +23,26 @@
     },
     {
       "cmd": "ssh prod.example.com",
-      "name": "Optional Ghostty backend example",
+      "name": "Optional Ghostty open backend example",
       "backend": "ghostty-open"
+    },
+    {
+      "cmd": "ssh prod-tab.example.com",
+      "name": "Optional Ghostty AppleScript backend example",
+      "backend": "ghostty-applescript",
+      "inTerminal": "tab"
+    },
+    {
+      "cmd": "ssh pair.example.com",
+      "name": "Optional cmux CLI backend example",
+      "backend": "cmux-cli",
+      "strategy": "workspace"
+    },
+    {
+      "cmd": "ssh socket.example.com",
+      "name": "Optional cmux socket backend example",
+      "backend": "cmux-socket",
+      "strategy": "socket"
     },
     {
       "Spouses Servers": [
