@@ -47,10 +47,14 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
     for entry in entries {
         match entry {
             config::model::HostEntry::Command(command) => {
-                if let Ok(launcher::LaunchKind::Terminal(request)) =
-                    launcher::normalize(config, command, &command.name)
-                {
-                    match &request.backend {
+                let Ok(kind) = launcher::normalize(config, command, &command.name) else {
+                    continue;
+                };
+                match kind {
+                    launcher::LaunchKind::Url(url) => {
+                        let _ = launcher::url::open_url(&url);
+                    }
+                    launcher::LaunchKind::Terminal(request) => match &request.backend {
                         launcher::Backend::TerminalApp => {
                             let _ = launcher::terminal_app::applescript_resource(&request);
                             let _ = launcher::terminal_app::script_parameters(&request);
@@ -77,7 +81,7 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                         launcher::Backend::Screen => {
                             let _ = launcher::virtual_screen::screen_args(&request);
                         }
-                    }
+                    },
                 }
             }
             config::model::HostEntry::Menu(children) => {

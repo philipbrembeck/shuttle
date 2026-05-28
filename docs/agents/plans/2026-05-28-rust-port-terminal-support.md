@@ -253,7 +253,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [x] Implement SSH path splitting by `/` and merging into the config menu tree.
 - [ ] Implement `src/macos/menu.rs` to build native `NSMenu` / `NSMenuItem` trees from the normalized menu model.
 - [x] Implement `LaunchRequest` normalization in `src/launcher/mod.rs`, including command, title fallback, theme fallback, target validation, URL detection, and legacy terminal mapping.
-- [ ] Implement URL opening through the macOS workspace API.
+- [x] Implement URL opening through the macOS workspace API.
 - [x] Implement Terminal.app AppleScript strategy matching existing `new`, `tab`, and `current` modes.
 - [x] Implement iTerm stable/nightly AppleScript strategies matching existing `new`, `tab`, and `current` modes.
 - [x] Implement virtual/background execution with `screen -d -m -S <title> <cmd>`.
