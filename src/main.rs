@@ -1,6 +1,7 @@
 mod config;
 #[cfg(target_os = "macos")]
 mod macos;
+mod menu_model;
 
 fn main() {
     #[cfg(target_os = "macos")]
@@ -18,7 +19,8 @@ fn bootstrap_config() -> Result<(), config::ConfigError> {
     let paths = config::discover_paths()?;
     config::ensure_default_config(&paths)?;
     let before = config::snapshot(&paths);
-    let _config = config::load_merged(&paths)?;
+    let config = config::load_merged(&paths)?;
+    let _menu = menu_model::with_separators(menu_model::build(&config.hosts));
     let after = config::snapshot(&paths);
     let _needs_reload = config::needs_reload(&before, &after);
     Ok(())

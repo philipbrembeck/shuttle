@@ -245,9 +245,9 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 **Dependencies**: **Phase 2**
 
 **Tasks**:
-- [ ] Implement `src/menu_model.rs` to convert nested config hosts into a normalized menu tree.
-- [ ] Preserve independent case-insensitive sorting of submenu entries and command leaves.
-- [ ] Preserve `[aaa]` sort marker removal and `[---]` separator insertion semantics.
+- [x] Implement `src/menu_model.rs` to convert nested config hosts into a normalized menu tree.
+- [x] Preserve independent case-insensitive sorting of submenu entries and command leaves.
+- [x] Preserve `[aaa]` sort marker removal and `[---]` separator insertion semantics.
 - [ ] Implement `src/config/ssh.rs` with legacy-compatible parsing for `Host`, `Include`, first alias selection, and `# shuttle.*` comments.
 - [ ] Implement SSH host filtering for wildcards, dot-prefixed names, exact ignored hosts, and ignored keyword substrings.
 - [ ] Implement SSH path splitting by `/` and merging into the config menu tree.
@@ -262,7 +262,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 **Automated Verification**:
 - [ ] `cargo check` passes.
 - [ ] `cargo fmt --check` and strict Clippy checks pass.
-- [ ] Menu model tests cover nested menus, leaves, sorting, sort marker stripping, and separator markers.
+- [x] Menu model tests cover nested menus, leaves, sorting, sort marker stripping, and separator markers.
 - [ ] SSH parser tests cover `Host`, multiple aliases, `Include`, `# shuttle.name`, wildcard filtering, ignored hosts, and ignored keywords.
 - [ ] Launch normalization tests cover legacy Terminal.app, iTerm stable/nightly, URL commands, invalid `inTerminal`, title fallback, theme fallback, and virtual target mapping.
 
