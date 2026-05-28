@@ -309,19 +309,19 @@ Add both approved Ghostty strategies: command/open-based launch and AppleScript 
 **Dependencies**: **Phase 4**
 
 **Tasks**:
-- [ ] Implement `GhosttyOpen` strategy in `src/launcher/ghostty.rs` using `open -na Ghostty.app --args ...`.
-- [ ] Map `LaunchTarget::New` to the Ghostty open strategy and define clear fallback/error behavior for `Tab` and `Current` if selected with `ghostty-open`.
-- [ ] Pass command, title, and supported config/profile arguments through `open --args` with safe argument handling and no shell interpolation.
-- [ ] Implement `GhosttyAppleScript` strategy using Ghostty 1.3+ AppleScript support for `new`, `tab`, and `current` where the scripting API supports them.
+- [x] Implement `GhosttyOpen` strategy in `src/launcher/ghostty.rs` using `open -na Ghostty.app --args ...`.
+- [x] Map `LaunchTarget::New` to the Ghostty open strategy and define clear fallback/error behavior for `Tab` and `Current` if selected with `ghostty-open`.
+- [x] Pass command, title, and supported config/profile arguments through `open --args` with safe argument handling and no shell interpolation.
+- [x] Implement `GhosttyAppleScript` strategy using Ghostty 1.3+ AppleScript support for `new`, `tab`, and `current` where the scripting API supports them.
 - [ ] Add detection/error messaging for missing Ghostty, unsupported Ghostty AppleScript version, or Apple Events denial.
 - [ ] Add default config examples for `ghostty-open` and `ghostty-applescript`.
 - [ ] Document when to use `ghostty-open` versus `ghostty-applescript`.
 
 **Automated Verification**:
-- [ ] `cargo check` passes.
-- [ ] Ghostty command construction tests verify `open -na Ghostty.app --args` argument vectors for command, title, and target combinations.
-- [ ] Ghostty backend resolution tests cover `ghostty-open`, `ghostty-applescript`, unsupported target combinations, and per-host overrides.
-- [ ] AppleScript generation/invocation wrapper tests verify parameters are passed as separate arguments rather than shell-concatenated strings.
+- [x] `cargo check` passes.
+- [x] Ghostty command construction tests verify `open -na Ghostty.app --args` argument vectors for command, title, and target combinations.
+- [x] Ghostty backend resolution tests cover `ghostty-open`, `ghostty-applescript`, unsupported target combinations, and per-host overrides.
+- [x] AppleScript generation/invocation wrapper tests verify parameters are passed as separate arguments rather than shell-concatenated strings.
 
 **Manual Verification**:
 - [ ] With Ghostty installed, configure a host with `backend: "ghostty-open"` and verify it opens a new Ghostty instance/window running the command.

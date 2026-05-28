@@ -47,7 +47,19 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
     for entry in entries {
         match entry {
             config::model::HostEntry::Command(command) => {
-                let _ = launcher::normalize(config, command, &command.name);
+                if let Ok(launcher::LaunchKind::Terminal(request)) =
+                    launcher::normalize(config, command, &command.name)
+                {
+                    match request.backend {
+                        launcher::Backend::GhosttyOpen => {
+                            let _ = launcher::ghostty::open_args(&request);
+                        }
+                        launcher::Backend::GhosttyAppleScript => {
+                            let _ = launcher::ghostty::applescript_source(&request);
+                        }
+                        _ => {}
+                    }
+                }
             }
             config::model::HostEntry::Menu(children) => {
                 for child_entries in children.values() {

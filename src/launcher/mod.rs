@@ -1,3 +1,5 @@
+pub mod ghostty;
+
 use crate::config::model::{CommandHost, Config};
 use thiserror::Error;
 
