@@ -263,6 +263,46 @@ mod tests {
     }
 
     #[test]
+    fn resolves_top_level_and_host_backend_precedence() {
+        let config = Config {
+            backend: Some("ghostty-open".into()),
+            ..Config::default()
+        };
+        let LaunchKind::Terminal(request) = normalize(&config, &host(), "Menu").unwrap() else {
+            panic!("terminal expected")
+        };
+        assert_eq!(request.backend, Backend::GhosttyOpen);
+
+        let mut host = host();
+        host.backend = Some("cmux-cli".into());
+        let LaunchKind::Terminal(request) = normalize(&config, &host, "Menu").unwrap() else {
+            panic!("terminal expected")
+        };
+        assert_eq!(request.backend, Backend::CmuxCli);
+    }
+
+    #[test]
+    fn rejects_invalid_backend_and_strategy() {
+        let config = Config {
+            backend: Some("nope".into()),
+            ..Config::default()
+        };
+        assert_eq!(
+            normalize(&config, &host(), "Menu"),
+            Err(LaunchError::Backend("nope".into()))
+        );
+
+        let config = Config {
+            strategy: Some("sideways".into()),
+            ..Config::default()
+        };
+        assert_eq!(
+            normalize(&config, &host(), "Menu"),
+            Err(LaunchError::Strategy("sideways".into()))
+        );
+    }
+
+    #[test]
     fn validates_bad_host_target() {
         let mut host = host();
         host.in_terminal = Some("sideways".into());

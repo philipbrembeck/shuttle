@@ -292,8 +292,8 @@ Make terminal dispatch explicit and extensible while keeping legacy keys working
 
 **Automated Verification**:
 - [x] `cargo check` passes.
-- [ ] Backend resolution tests cover legacy-only config, top-level backend, per-host backend override, invalid backend, and invalid strategy.
-- [ ] Config compatibility tests verify old configs produce the same backend/target choices as Phase 2.
+- [x] Backend resolution tests cover legacy-only config, top-level backend, per-host backend override, invalid backend, and invalid strategy.
+- [x] Config compatibility tests verify old configs produce the same backend/target choices as Phase 2.
 - [ ] `python -m json.tool resources/shuttle.default.json` passes, or equivalent JSON validation if comments are not represented in strict JSON.
 
 **Manual Verification**:
