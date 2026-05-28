@@ -234,7 +234,7 @@ Establish strict formatting, linting, and testing rules immediately after the Ru
 - [x] `cargo clippy --all-targets --all-features -- -D warnings` passes.
 - [x] `cargo test` passes.
 - [x] The local all-checks script passes from a clean checkout after hook installation.
-- [ ] A Rust Husky hook dry run or equivalent local invocation runs the expected checks and fails on an intentional formatting/lint error.
+- [x] A Rust Husky hook dry run or equivalent local invocation runs the expected checks and fails on an intentional formatting/lint error.
 
 ---
 
