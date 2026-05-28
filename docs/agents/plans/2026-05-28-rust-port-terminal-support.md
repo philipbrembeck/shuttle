@@ -350,7 +350,7 @@ Add both approved cmux strategies: CLI integration and Unix socket JSON API inte
 - [x] `cargo check` passes.
 - [x] cmux CLI command construction tests cover workspace creation, current-surface send, binary path override, and missing binary error.
 - [x] cmux socket serialization tests verify newline-delimited JSON request shape with `id`, `method`, and `params`.
-- [ ] cmux socket integration test using a fake Unix socket server verifies request/response handling and error propagation.
+- [x] cmux socket integration test using a fake Unix socket server verifies request/response handling and error propagation.
 - [x] Backend resolution tests cover `cmux-cli`, `cmux-socket`, top-level config, and per-host overrides.
 
 **Manual Verification**:

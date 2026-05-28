@@ -78,8 +78,10 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                             }
                         }
                         launcher::Backend::CmuxSocket => {
-                            let _ = launcher::cmux::socket_path();
-                            let _ = launcher::cmux::socket_launch_request(1, &request);
+                            if let Ok(path) = launcher::cmux::socket_path() {
+                                let payload = launcher::cmux::socket_launch_request(1, &request);
+                                let _ = launcher::cmux::send_socket_request(&path, &payload);
+                            }
                         }
                         launcher::Backend::Screen => {
                             let _ = launcher::virtual_screen::screen_args(&request);

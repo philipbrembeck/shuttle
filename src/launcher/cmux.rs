@@ -1,7 +1,8 @@
 use super::{LaunchRequest, LaunchTarget};
 use serde_json::json;
 use std::env;
-use std::path::PathBuf;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 const APP_CMUX: &str = "/Applications/cmux.app/Contents/Resources/bin/cmux";
@@ -67,6 +68,14 @@ pub fn socket_request(id: u64, method: &str, params: serde_json::Value) -> Strin
     encoded
 }
 
+pub fn send_socket_request(path: &Path, request: &str) -> std::io::Result<String> {
+    let mut stream = std::os::unix::net::UnixStream::connect(path)?;
+    stream.write_all(request.as_bytes())?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response)?;
+    Ok(response)
+}
+
 pub fn socket_launch_request(id: u64, request: &LaunchRequest) -> String {
     match request.target {
         LaunchTarget::New | LaunchTarget::Tab => socket_request(
@@ -128,5 +137,33 @@ mod tests {
     #[test]
     fn builds_socket_launch_request() {
         assert!(socket_launch_request(1, &request(LaunchTarget::New)).contains("workspace.send"));
+    }
+
+    #[test]
+    fn sends_request_to_fake_unix_socket() {
+        use std::io::{BufRead, BufReader};
+        use std::os::unix::net::UnixListener;
+        use std::thread;
+
+        let temp = tempfile::tempdir().unwrap();
+        let socket_path = temp.path().join("cmux.sock");
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            BufReader::new(stream.try_clone().unwrap())
+                .read_line(&mut line)
+                .unwrap();
+            assert!(line.contains("surface.send"));
+            stream.write_all(b"{\"id\":1,\"result\":true}\n").unwrap();
+        });
+
+        let response = send_socket_request(
+            &socket_path,
+            &socket_request(1, "surface.send", json!({"text":"hi"})),
+        )
+        .unwrap();
+        handle.join().unwrap();
+        assert!(response.contains("result"));
     }
 }
