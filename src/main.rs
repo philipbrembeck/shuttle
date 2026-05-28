@@ -39,7 +39,9 @@ fn bootstrap_config() -> Result<(), config::ConfigError> {
     );
     #[cfg(target_os = "macos")]
     let _ = macos::login_item::set_launch_at_login(config.launch_at_login);
-    let _menu = menu_model::with_separators(menu_model::build(&config.hosts));
+    let menu = menu_model::with_separators(menu_model::build(&config.hosts));
+    #[cfg(target_os = "macos")]
+    let _native_menu = macos::menu::install_status_menu(&menu);
     collect_launch_requests(&config, &config.hosts);
     let after = config::snapshot(&paths);
     let _needs_reload = config::needs_reload(&before, &after);
