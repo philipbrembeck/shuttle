@@ -19,7 +19,19 @@ pub enum ITermVersion {
 pub enum Backend {
     TerminalApp,
     ITerm { version: ITermVersion },
+    GhosttyOpen,
+    GhosttyAppleScript,
+    CmuxCli,
+    CmuxSocket,
     Screen,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LaunchStrategy {
+    Default,
+    Workspace,
+    Socket,
+    AppleScript,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,14 +47,19 @@ pub struct LaunchRequest {
     pub theme_or_profile: String,
     pub target: LaunchTarget,
     pub backend: Backend,
+    pub strategy: LaunchStrategy,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum LaunchError {
     #[error("'{0}' is not a valid value for inTerminal")]
-    InvalidTarget(String),
+    Target(String),
     #[error("'{0}' is not a valid value for iTerm_version")]
-    InvalidITermVersion(String),
+    ITermVersion(String),
+    #[error("'{0}' is not a supported backend")]
+    Backend(String),
+    #[error("'{0}' is not a supported strategy")]
+    Strategy(String),
 }
 
 pub fn normalize(
@@ -55,21 +72,8 @@ pub fn normalize(
         return Ok(LaunchKind::Url(host.cmd.clone()));
     }
 
-    let backend = if target == LaunchTarget::Virtual {
-        Backend::Screen
-    } else if config
-        .terminal
-        .as_deref()
-        .unwrap_or("Terminal.app")
-        .to_lowercase()
-        .contains("iterm")
-    {
-        Backend::ITerm {
-            version: normalize_iterm_version(config.iterm_version.as_deref())?,
-        }
-    } else {
-        Backend::TerminalApp
-    };
+    let backend = resolve_backend(config, host, &target)?;
+    let strategy = resolve_strategy(host.strategy.as_deref().or(config.strategy.as_deref()))?;
 
     Ok(LaunchKind::Terminal(LaunchRequest {
         command: host.cmd.clone(),
@@ -80,6 +84,7 @@ pub fn normalize(
             .unwrap_or_else(|| default_theme(config, &backend)),
         target,
         backend,
+        strategy,
     }))
 }
 
@@ -97,7 +102,7 @@ fn normalize_target(
         "current" => Ok(LaunchTarget::Current),
         "tab" => Ok(LaunchTarget::Tab),
         "virtual" => Ok(LaunchTarget::Virtual),
-        invalid if host_target.is_some() => Err(LaunchError::InvalidTarget(invalid.to_string())),
+        invalid if host_target.is_some() => Err(LaunchError::Target(invalid.to_string())),
         _ => Ok(LaunchTarget::Tab),
     }
 }
@@ -106,7 +111,59 @@ fn normalize_iterm_version(version: Option<&str>) -> Result<ITermVersion, Launch
     match version.unwrap_or("stable").to_lowercase().as_str() {
         "stable" => Ok(ITermVersion::Stable),
         "nightly" => Ok(ITermVersion::Nightly),
-        invalid => Err(LaunchError::InvalidITermVersion(invalid.to_string())),
+        invalid => Err(LaunchError::ITermVersion(invalid.to_string())),
+    }
+}
+
+fn resolve_backend(
+    config: &Config,
+    host: &CommandHost,
+    target: &LaunchTarget,
+) -> Result<Backend, LaunchError> {
+    if *target == LaunchTarget::Virtual {
+        return Ok(Backend::Screen);
+    }
+
+    if let Some(backend) = host.backend.as_deref().or(config.backend.as_deref()) {
+        return match backend.to_lowercase().as_str() {
+            "terminal" | "terminal.app" | "terminal-app" => Ok(Backend::TerminalApp),
+            "iterm" | "iterm-stable" => Ok(Backend::ITerm {
+                version: ITermVersion::Stable,
+            }),
+            "iterm-nightly" => Ok(Backend::ITerm {
+                version: ITermVersion::Nightly,
+            }),
+            "ghostty-open" => Ok(Backend::GhosttyOpen),
+            "ghostty-applescript" => Ok(Backend::GhosttyAppleScript),
+            "cmux-cli" => Ok(Backend::CmuxCli),
+            "cmux-socket" => Ok(Backend::CmuxSocket),
+            "screen" | "virtual" => Ok(Backend::Screen),
+            invalid => Err(LaunchError::Backend(invalid.to_string())),
+        };
+    }
+
+    if config
+        .terminal
+        .as_deref()
+        .unwrap_or("Terminal.app")
+        .to_lowercase()
+        .contains("iterm")
+    {
+        Ok(Backend::ITerm {
+            version: normalize_iterm_version(config.iterm_version.as_deref())?,
+        })
+    } else {
+        Ok(Backend::TerminalApp)
+    }
+}
+
+fn resolve_strategy(strategy: Option<&str>) -> Result<LaunchStrategy, LaunchError> {
+    match strategy.unwrap_or("default").to_lowercase().as_str() {
+        "default" => Ok(LaunchStrategy::Default),
+        "workspace" => Ok(LaunchStrategy::Workspace),
+        "socket" => Ok(LaunchStrategy::Socket),
+        "applescript" | "apple-script" => Ok(LaunchStrategy::AppleScript),
+        invalid => Err(LaunchError::Strategy(invalid.to_string())),
     }
 }
 
@@ -116,7 +173,12 @@ fn default_theme(config: &Config, backend: &Backend) -> String {
         .clone()
         .unwrap_or_else(|| match backend {
             Backend::ITerm { .. } => "Default".into(),
-            Backend::TerminalApp | Backend::Screen => "basic".into(),
+            Backend::TerminalApp
+            | Backend::Screen
+            | Backend::GhosttyOpen
+            | Backend::GhosttyAppleScript
+            | Backend::CmuxCli
+            | Backend::CmuxSocket => "basic".into(),
         })
 }
 
@@ -159,7 +221,8 @@ mod tests {
                 title: "Menu".into(),
                 theme_or_profile: "basic".into(),
                 target: LaunchTarget::New,
-                backend: Backend::TerminalApp
+                backend: Backend::TerminalApp,
+                strategy: LaunchStrategy::Default
             })
         );
     }
@@ -205,7 +268,7 @@ mod tests {
         host.in_terminal = Some("sideways".into());
         assert_eq!(
             normalize(&Config::default(), &host, "Menu"),
-            Err(LaunchError::InvalidTarget("sideways".into()))
+            Err(LaunchError::Target("sideways".into()))
         );
     }
 }

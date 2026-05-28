@@ -282,16 +282,16 @@ Make terminal dispatch explicit and extensible while keeping legacy keys working
 **Dependencies**: **Phase 3**
 
 **Tasks**:
-- [ ] Refactor `src/launcher/mod.rs` so every launch goes through `Backend` and `LaunchStrategy` resolution.
-- [ ] Add optional top-level `backend` and `strategy` config keys without changing legacy defaults.
-- [ ] Add optional per-host `backend` and `strategy` overrides.
-- [ ] Define precedence rules: per-host backend/strategy, top-level backend/strategy, legacy `terminal`/`open_in`, then defaults.
-- [ ] Add structured errors/warnings for unsupported backend and target combinations.
+- [x] Refactor `src/launcher/mod.rs` so every launch goes through `Backend` and `LaunchStrategy` resolution.
+- [x] Add optional top-level `backend` and `strategy` config keys without changing legacy defaults.
+- [x] Add optional per-host `backend` and `strategy` overrides.
+- [x] Define precedence rules: per-host backend/strategy, top-level backend/strategy, legacy `terminal`/`open_in`, then defaults.
+- [x] Add structured errors/warnings for unsupported backend and target combinations.
 - [ ] Update `resources/shuttle.default.json` comments/examples to show legacy keys plus optional backend keys.
 - [ ] Document backend selection, target mapping, and compatibility behavior in project docs or README.
 
 **Automated Verification**:
-- [ ] `cargo check` passes.
+- [x] `cargo check` passes.
 - [ ] Backend resolution tests cover legacy-only config, top-level backend, per-host backend override, invalid backend, and invalid strategy.
 - [ ] Config compatibility tests verify old configs produce the same backend/target choices as Phase 2.
 - [ ] `python -m json.tool resources/shuttle.default.json` passes, or equivalent JSON validation if comments are not represented in strict JSON.

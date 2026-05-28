@@ -16,6 +16,10 @@ pub struct Config {
     #[serde(default)]
     pub open_in: Option<String>,
     #[serde(default)]
+    pub backend: Option<String>,
+    #[serde(default)]
+    pub strategy: Option<String>,
+    #[serde(default)]
     pub show_ssh_config_hosts: Option<bool>,
     #[serde(default)]
     pub ssh_config_ignore_hosts: Vec<String>,
