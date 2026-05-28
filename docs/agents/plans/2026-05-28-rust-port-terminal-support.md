@@ -372,14 +372,14 @@ Finish the port as an installable app with clear compatibility and migration gui
 - [x] Add a migration guide explaining existing config compatibility and new backend/strategy keys.
 - [x] Add terminal support documentation for Terminal.app, iTerm, Ghostty, cmux, URL commands, and virtual/screen mode.
 - [x] Add troubleshooting docs for Automation permission, missing terminal apps, cmux socket access, and config parse errors.
-- [ ] Add packaging/release instructions for building the `.app` bundle.
+- [x] Add packaging/release instructions for building the `.app` bundle.
 - [ ] Audit all user-visible errors for actionable messages.
 - [ ] Decide whether the Objective-C app remains in-tree during transition or moves under a legacy directory after the Rust app reaches parity.
 
 **Automated Verification**:
 - [ ] `cargo check` passes.
 - [ ] `cargo test` passes.
-- [ ] App bundle build command succeeds and produces a launchable `.app`.
+- [x] App bundle build command succeeds and produces a launchable `.app`.
 - [ ] JSON validation passes for all default/sample config files.
 - [ ] Documentation examples that are JSON blocks validate where they are intended to be copy-pasteable configs.
 
