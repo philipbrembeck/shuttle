@@ -1,5 +1,7 @@
 pub mod cmux;
 pub mod ghostty;
+pub mod iterm;
+pub mod terminal_app;
 pub mod virtual_screen;
 
 use crate::config::model::{CommandHost, Config};

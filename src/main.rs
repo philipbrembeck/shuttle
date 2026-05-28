@@ -50,7 +50,15 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                 if let Ok(launcher::LaunchKind::Terminal(request)) =
                     launcher::normalize(config, command, &command.name)
                 {
-                    match request.backend {
+                    match &request.backend {
+                        launcher::Backend::TerminalApp => {
+                            let _ = launcher::terminal_app::applescript_resource(&request);
+                            let _ = launcher::terminal_app::script_parameters(&request);
+                        }
+                        launcher::Backend::ITerm { version } => {
+                            let _ = launcher::iterm::applescript_resource(&request, version);
+                            let _ = launcher::iterm::script_parameters(&request);
+                        }
                         launcher::Backend::GhosttyOpen => {
                             let _ = launcher::ghostty::open_args(&request);
                         }
@@ -69,7 +77,6 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                         launcher::Backend::Screen => {
                             let _ = launcher::virtual_screen::screen_args(&request);
                         }
-                        _ => {}
                     }
                 }
             }
