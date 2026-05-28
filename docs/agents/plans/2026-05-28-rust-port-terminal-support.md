@@ -377,10 +377,10 @@ Finish the port as an installable app with clear compatibility and migration gui
 - [ ] Decide whether the Objective-C app remains in-tree during transition or moves under a legacy directory after the Rust app reaches parity.
 
 **Automated Verification**:
-- [ ] `cargo check` passes.
-- [ ] `cargo test` passes.
+- [x] `cargo check` passes.
+- [x] `cargo test` passes.
 - [x] App bundle build command succeeds and produces a launchable `.app`.
-- [ ] JSON validation passes for all default/sample config files.
+- [x] JSON validation passes for all default/sample config files.
 - [ ] Documentation examples that are JSON blocks validate where they are intended to be copy-pasteable configs.
 
 **Manual Verification**:
