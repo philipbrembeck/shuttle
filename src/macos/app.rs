@@ -1,7 +1,7 @@
 #![allow(deprecated, unexpected_cfgs)]
 
 use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicyAccessory};
-use cocoa::base::{id, nil};
+use cocoa::base::nil;
 use cocoa::foundation::NSAutoreleasePool;
 use objc::{msg_send, sel, sel_impl};
 
@@ -19,12 +19,13 @@ pub fn run() {
             }
         };
 
-        let status_item = crate::macos::menu::install_status_menu(&menu_entries);
-        retain_forever(status_item);
+        let delegate = crate::macos::delegate::create_delegate();
+        let _: () = msg_send![delegate, retain];
+
+        let status_item = crate::macos::menu::install_status_menu(&menu_entries, delegate);
+        // Keep the status item alive for the lifetime of the app
+        let _: () = msg_send![status_item, retain];
+
         app.run();
     }
-}
-
-unsafe fn retain_forever(object: id) {
-    let _: id = msg_send![object, retain];
 }

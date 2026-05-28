@@ -1,6 +1,10 @@
 #![allow(deprecated, unexpected_cfgs, dead_code)]
 
 use crate::menu_model::MenuEntry;
+use cocoa::appkit::{NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength};
+use cocoa::base::{id, nil, NO, YES};
+use cocoa::foundation::{NSAutoreleasePool, NSString};
+use objc::{class, msg_send, sel, sel_impl};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeMenuSpec {
@@ -39,30 +43,56 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn install_status_menu(entries: &[MenuEntry]) -> cocoa::base::id {
-    use cocoa::appkit::{
-        NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
-    };
-    use cocoa::base::{id, nil};
-    use cocoa::foundation::NSString;
-    use objc::{msg_send, sel, sel_impl};
-
+pub fn install_status_menu(entries: &[MenuEntry], delegate: id) -> id {
     unsafe {
         let menu = build_ns_menu(entries);
+
+        // Separator before actions
         menu.addItem_(NSMenuItem::separatorItem(nil));
+
+        // Configure...
+        let configure = menu_item_with_action("Configure...", sel!(shuttleConfigure:));
+        configure.setTarget_(delegate);
+        menu.addItem_(configure);
+
+        // Import...
+        let import = menu_item_with_action("Import...", sel!(shuttleImport:));
+        import.setTarget_(delegate);
+        menu.addItem_(import);
+
+        // Export...
+        let export = menu_item_with_action("Export...", sel!(shuttleExport:));
+        export.setTarget_(delegate);
+        menu.addItem_(export);
+
+        // About Shuttle
+        let about = menu_item_with_action("About Shuttle", sel!(orderFrontStandardAboutPanel:));
+        menu.addItem_(about);
+
+        // Quit
         let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
-            NSString::alloc(nil).init_str("Quit Shuttle"),
+            NSString::alloc(nil).init_str("Quit"),
             sel!(terminate:),
             NSString::alloc(nil).init_str("q"),
         );
         menu.addItem_(quit);
 
+        // Status item
         let status_bar = NSStatusBar::systemStatusBar(nil);
         let item = status_bar.statusItemWithLength_(NSVariableStatusItemLength);
         let button: id = item.button();
         if button != nil {
-            let title = NSString::alloc(nil).init_str("🚀");
-            let _: () = msg_send![button, setTitle: title];
+            // Use SF Symbol "paperplane.fill" (rocket-like, available since macOS 11)
+            let symbol_name = NSString::alloc(nil).init_str("paperplane.fill");
+            let image: id = msg_send![class!(NSImage), imageWithSystemSymbolName: symbol_name accessibilityDescription: nil];
+            if image != nil {
+                let _: () = msg_send![image, setTemplate: YES];
+                let _: () = msg_send![button, setImage: image];
+            } else {
+                // Fallback for older macOS
+                let title = NSString::alloc(nil).init_str("🚀");
+                let _: () = msg_send![button, setTitle: title];
+            }
         }
         item.setMenu_(menu);
         item
@@ -70,12 +100,18 @@ pub fn install_status_menu(entries: &[MenuEntry]) -> cocoa::base::id {
 }
 
 #[cfg(target_os = "macos")]
-unsafe fn build_ns_menu(entries: &[MenuEntry]) -> cocoa::base::id {
-    use cocoa::appkit::{NSMenu, NSMenuItem};
-    use cocoa::base::nil;
-    use cocoa::foundation::NSAutoreleasePool;
+unsafe fn menu_item_with_action(title: &str, action: objc::runtime::Sel) -> id {
+    NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+        NSString::alloc(nil).init_str(title),
+        action,
+        NSString::alloc(nil).init_str(""),
+    )
+}
 
+#[cfg(target_os = "macos")]
+unsafe fn build_ns_menu(entries: &[MenuEntry]) -> id {
     let menu = NSMenu::new(nil).autorelease();
+    let _: () = msg_send![menu, setAutoenablesItems: NO];
     for entry in entries {
         match entry {
             MenuEntry::Menu {
@@ -87,7 +123,7 @@ unsafe fn build_ns_menu(entries: &[MenuEntry]) -> cocoa::base::id {
                 menu.addItem_(item);
             }
             MenuEntry::Command { title, .. } => {
-                let item = menu_item(title, false);
+                let item = menu_item(title, true);
                 menu.addItem_(item);
             }
             MenuEntry::Disabled { title } => {
@@ -101,12 +137,7 @@ unsafe fn build_ns_menu(entries: &[MenuEntry]) -> cocoa::base::id {
 }
 
 #[cfg(target_os = "macos")]
-unsafe fn menu_item(title: &str, enabled: bool) -> cocoa::base::id {
-    use cocoa::appkit::NSMenuItem;
-    use cocoa::base::{nil, NO, YES};
-    use cocoa::foundation::{NSAutoreleasePool, NSString};
-    use objc::{msg_send, sel, sel_impl};
-
+unsafe fn menu_item(title: &str, enabled: bool) -> id {
     let item = NSMenuItem::alloc(nil)
         .initWithTitle_action_keyEquivalent_(
             NSString::alloc(nil).init_str(title),
@@ -114,8 +145,8 @@ unsafe fn menu_item(title: &str, enabled: bool) -> cocoa::base::id {
             NSString::alloc(nil).init_str(""),
         )
         .autorelease();
-    let enabled = if enabled { YES } else { NO };
-    let _: () = msg_send![item, setEnabled: enabled];
+    let flag = if enabled { YES } else { NO };
+    let _: () = msg_send![item, setEnabled: flag];
     item
 }
 
