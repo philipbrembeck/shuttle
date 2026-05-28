@@ -15,7 +15,10 @@ cp resources/shuttle.default.json "$RESOURCES/shuttle.default.json"
 if [ -d resources/apple-scpt ]; then
   cp resources/apple-scpt/*.scpt "$RESOURCES/"
 fi
-if [ -f shuttle.icns ]; then
+# Prefer the generated icns in resources/, fall back to root-level legacy file
+if [ -f resources/shuttle.icns ]; then
+  cp resources/shuttle.icns "$RESOURCES/shuttle.icns"
+elif [ -f shuttle.icns ]; then
   cp shuttle.icns "$RESOURCES/shuttle.icns"
 fi
 

@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>shuttle-rs</string>
 	<key>CFBundleIconFile</key>
-	<string>shuttle</string>
+	<string>shuttle.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.fitztrev.shuttle-rs</string>
 	<key>CFBundleInfoDictionaryVersion</key>
