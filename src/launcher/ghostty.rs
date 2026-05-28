@@ -3,8 +3,26 @@ use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum GhosttyError {
+    #[error(
+        "Ghostty.app was not found in /Applications; install Ghostty or choose another backend"
+    )]
+    MissingApplication,
     #[error("ghostty-open supports only new-window launches; use ghostty-applescript for {0:?}")]
     UnsupportedOpenTarget(LaunchTarget),
+    #[error("Ghostty AppleScript requires Ghostty 1.3+ and macOS Automation permission")]
+    AppleScriptUnavailable,
+}
+
+pub fn detect_application() -> Result<(), GhosttyError> {
+    if std::path::Path::new("/Applications/Ghostty.app").exists() {
+        Ok(())
+    } else {
+        Err(GhosttyError::MissingApplication)
+    }
+}
+
+pub fn automation_denied_error() -> GhosttyError {
+    GhosttyError::AppleScriptUnavailable
 }
 
 pub fn open_args(request: &LaunchRequest) -> Result<Vec<String>, GhosttyError> {
@@ -59,6 +77,12 @@ mod tests {
             backend: Backend::GhosttyOpen,
             strategy: LaunchStrategy::Default,
         }
+    }
+
+    #[test]
+    fn missing_app_has_actionable_error() {
+        let error = GhosttyError::MissingApplication.to_string();
+        assert!(error.contains("install Ghostty"));
     }
 
     #[test]

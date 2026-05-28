@@ -313,7 +313,7 @@ Add both approved Ghostty strategies: command/open-based launch and AppleScript 
 - [x] Map `LaunchTarget::New` to the Ghostty open strategy and define clear fallback/error behavior for `Tab` and `Current` if selected with `ghostty-open`.
 - [x] Pass command, title, and supported config/profile arguments through `open --args` with safe argument handling and no shell interpolation.
 - [x] Implement `GhosttyAppleScript` strategy using Ghostty 1.3+ AppleScript support for `new`, `tab`, and `current` where the scripting API supports them.
-- [ ] Add detection/error messaging for missing Ghostty, unsupported Ghostty AppleScript version, or Apple Events denial.
+- [x] Add detection/error messaging for missing Ghostty, unsupported Ghostty AppleScript version, or Apple Events denial.
 - [ ] Add default config examples for `ghostty-open` and `ghostty-applescript`.
 - [ ] Document when to use `ghostty-open` versus `ghostty-applescript`.
 

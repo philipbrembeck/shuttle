@@ -64,9 +64,12 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                             let _ = launcher::iterm::script_parameters(&request);
                         }
                         launcher::Backend::GhosttyOpen => {
+                            let _ = launcher::ghostty::detect_application();
                             let _ = launcher::ghostty::open_args(&request);
                         }
                         launcher::Backend::GhosttyAppleScript => {
+                            let _ = launcher::ghostty::detect_application();
+                            let _ = launcher::ghostty::automation_denied_error();
                             let _ = launcher::ghostty::applescript_source(&request);
                         }
                         launcher::Backend::CmuxCli => {
