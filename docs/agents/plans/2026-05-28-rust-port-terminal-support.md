@@ -248,9 +248,9 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [x] Implement `src/menu_model.rs` to convert nested config hosts into a normalized menu tree.
 - [x] Preserve independent case-insensitive sorting of submenu entries and command leaves.
 - [x] Preserve `[aaa]` sort marker removal and `[---]` separator insertion semantics.
-- [ ] Implement `src/config/ssh.rs` with legacy-compatible parsing for `Host`, `Include`, first alias selection, and `# shuttle.*` comments.
-- [ ] Implement SSH host filtering for wildcards, dot-prefixed names, exact ignored hosts, and ignored keyword substrings.
-- [ ] Implement SSH path splitting by `/` and merging into the config menu tree.
+- [x] Implement `src/config/ssh.rs` with legacy-compatible parsing for `Host`, `Include`, first alias selection, and `# shuttle.*` comments.
+- [x] Implement SSH host filtering for wildcards, dot-prefixed names, exact ignored hosts, and ignored keyword substrings.
+- [x] Implement SSH path splitting by `/` and merging into the config menu tree.
 - [ ] Implement `src/macos/menu.rs` to build native `NSMenu` / `NSMenuItem` trees from the normalized menu model.
 - [ ] Implement `LaunchRequest` normalization in `src/launcher/mod.rs`, including command, title fallback, theme fallback, target validation, URL detection, and legacy terminal mapping.
 - [ ] Implement URL opening through the macOS workspace API.
@@ -263,7 +263,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [ ] `cargo check` passes.
 - [ ] `cargo fmt --check` and strict Clippy checks pass.
 - [x] Menu model tests cover nested menus, leaves, sorting, sort marker stripping, and separator markers.
-- [ ] SSH parser tests cover `Host`, multiple aliases, `Include`, `# shuttle.name`, wildcard filtering, ignored hosts, and ignored keywords.
+- [x] SSH parser tests cover `Host`, multiple aliases, `Include`, `# shuttle.name`, wildcard filtering, ignored hosts, and ignored keywords.
 - [ ] Launch normalization tests cover legacy Terminal.app, iTerm stable/nightly, URL commands, invalid `inTerminal`, title fallback, theme fallback, and virtual target mapping.
 
 **Manual Verification**:

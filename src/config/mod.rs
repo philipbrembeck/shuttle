@@ -1,4 +1,5 @@
 pub mod model;
+pub mod ssh;
 
 use model::Config;
 use std::fs;
