@@ -200,7 +200,7 @@ Create the minimal Rust app foundation and preserve the existing config loading 
 - [x] Define typed config structs in `src/config/model.rs` for legacy top-level fields and nested hosts.
 - [x] Implement JSON loading with the approved tiny dependency allowlist, preserving mutable/merge behavior needed for alt config hosts.
 - [x] Implement timestamp-based reload checks for main config, alternate config, `/etc/ssh/ssh_config`, and `~/.ssh/config`.
-- [ ] Add user-facing error display for invalid JSON equivalent to the current disabled “Error parsing config” menu item.
+- [x] Add user-facing error display for invalid JSON equivalent to the current disabled “Error parsing config” menu item.
 
 **Automated Verification**:
 - [x] `cargo check` passes.

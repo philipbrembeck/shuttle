@@ -11,6 +11,7 @@ fn main() {
     #[cfg(not(target_os = "macos"))]
     {
         if let Err(error) = bootstrap_config() {
+            let _menu = menu_model::error_menu("Error parsing config");
             eprintln!("Shuttle config error: {error}");
         }
     }

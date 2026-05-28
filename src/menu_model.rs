@@ -13,6 +13,9 @@ pub enum MenuEntry {
         separator_after: bool,
     },
     Separator,
+    Disabled {
+        title: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +101,12 @@ fn cmp_legacy(left: &str, right: &str) -> std::cmp::Ordering {
     left.to_lowercase().cmp(&right.to_lowercase())
 }
 
+pub fn error_menu(title: impl Into<String>) -> Vec<MenuEntry> {
+    vec![MenuEntry::Disabled {
+        title: title.into(),
+    }]
+}
+
 pub fn with_separators(entries: Vec<MenuEntry>) -> Vec<MenuEntry> {
     let mut result = Vec::new();
     for entry in entries {
@@ -108,7 +117,7 @@ pub fn with_separators(entries: Vec<MenuEntry>) -> Vec<MenuEntry> {
             | MenuEntry::Command {
                 separator_after, ..
             } => *separator_after,
-            MenuEntry::Separator => false,
+            MenuEntry::Separator | MenuEntry::Disabled { .. } => false,
         };
         result.push(entry);
         if separator_after {
@@ -164,9 +173,20 @@ mod tests {
             .map(|entry| match entry {
                 MenuEntry::Menu { title, .. } | MenuEntry::Command { title, .. } => title,
                 MenuEntry::Separator => "-".into(),
+                MenuEntry::Disabled { title } => title,
             })
             .collect();
         assert_eq!(titles, ["a menu", "b menu", "a leaf", "z leaf"]);
+    }
+
+    #[test]
+    fn creates_disabled_error_menu_item() {
+        assert_eq!(
+            error_menu("Error parsing config"),
+            vec![MenuEntry::Disabled {
+                title: "Error parsing config".into()
+            }]
+        );
     }
 
     #[test]

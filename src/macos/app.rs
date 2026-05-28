@@ -3,6 +3,7 @@ pub fn run() {
     // callback bridge land. For now, bootstrap config loading so the Rust target is
     // runnable during Phase 1 on macOS and surfaces parse/path errors clearly.
     if let Err(error) = crate::bootstrap_config() {
+        let _menu = crate::menu_model::error_menu("Error parsing config");
         eprintln!("Shuttle config error: {error}");
     }
 }
