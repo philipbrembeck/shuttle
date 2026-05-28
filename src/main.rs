@@ -37,6 +37,8 @@ fn bootstrap_config() -> Result<(), config::ConfigError> {
         &config.ssh_config_ignore_hosts,
         &config.ssh_config_ignore_keywords,
     );
+    #[cfg(target_os = "macos")]
+    let _ = macos::login_item::set_launch_at_login(config.launch_at_login);
     let _menu = menu_model::with_separators(menu_model::build(&config.hosts));
     collect_launch_requests(&config, &config.hosts);
     let after = config::snapshot(&paths);
