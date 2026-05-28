@@ -57,6 +57,15 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                         launcher::Backend::GhosttyAppleScript => {
                             let _ = launcher::ghostty::applescript_source(&request);
                         }
+                        launcher::Backend::CmuxCli => {
+                            if let Ok(binary) = launcher::cmux::default_binary() {
+                                let _ = launcher::cmux::cli_args(binary, &request);
+                            }
+                        }
+                        launcher::Backend::CmuxSocket => {
+                            let _ = launcher::cmux::socket_path();
+                            let _ = launcher::cmux::socket_launch_request(1, &request);
+                        }
                         _ => {}
                     }
                 }

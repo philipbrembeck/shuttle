@@ -337,21 +337,21 @@ Add both approved cmux strategies: CLI integration and Unix socket JSON API inte
 **Dependencies**: **Phase 4**
 
 **Tasks**:
-- [ ] Implement `CmuxCli` strategy in `src/launcher/cmux.rs` by spawning the `cmux` binary with argument vectors, not shell strings.
-- [ ] Add configurable cmux binary path with default discovery for `/Applications/cmux.app/Contents/Resources/bin/cmux` and `PATH` lookup.
-- [ ] Define initial `LaunchTarget` mapping for cmux CLI: `new`/`tab` to workspace-oriented behavior, `current` to focused/current surface send, and unsupported cases to structured errors.
-- [ ] Implement `CmuxSocket` strategy using newline-delimited JSON requests over Unix domain socket.
-- [ ] Add configurable cmux socket path with default `/tmp/cmux.sock` and environment override via `CMUX_SOCKET_PATH`.
-- [ ] Implement socket calls for workspace creation/selection/current lookup and surface text sending needed by Shuttle commands.
+- [x] Implement `CmuxCli` strategy in `src/launcher/cmux.rs` by spawning the `cmux` binary with argument vectors, not shell strings.
+- [x] Add configurable cmux binary path with default discovery for `/Applications/cmux.app/Contents/Resources/bin/cmux` and `PATH` lookup.
+- [x] Define initial `LaunchTarget` mapping for cmux CLI: `new`/`tab` to workspace-oriented behavior, `current` to focused/current surface send, and unsupported cases to structured errors.
+- [x] Implement `CmuxSocket` strategy using newline-delimited JSON requests over Unix domain socket.
+- [x] Add configurable cmux socket path with default `/tmp/cmux.sock` and environment override via `CMUX_SOCKET_PATH`.
+- [x] Implement socket calls for workspace creation/selection/current lookup and surface text sending needed by Shuttle commands.
 - [ ] Document cmux access mode requirements, including `CMUX_SOCKET_MODE=allowAll` when external local processes need socket access.
 - [ ] Add default config examples for `cmux-cli` and `cmux-socket`.
 
 **Automated Verification**:
-- [ ] `cargo check` passes.
-- [ ] cmux CLI command construction tests cover workspace creation, current-surface send, binary path override, and missing binary error.
-- [ ] cmux socket serialization tests verify newline-delimited JSON request shape with `id`, `method`, and `params`.
+- [x] `cargo check` passes.
+- [x] cmux CLI command construction tests cover workspace creation, current-surface send, binary path override, and missing binary error.
+- [x] cmux socket serialization tests verify newline-delimited JSON request shape with `id`, `method`, and `params`.
 - [ ] cmux socket integration test using a fake Unix socket server verifies request/response handling and error propagation.
-- [ ] Backend resolution tests cover `cmux-cli`, `cmux-socket`, top-level config, and per-host overrides.
+- [x] Backend resolution tests cover `cmux-cli`, `cmux-socket`, top-level config, and per-host overrides.
 
 **Manual Verification**:
 - [ ] With cmux installed, configure `backend: "cmux-cli"` and verify a command can be sent to the intended workspace/surface behavior.

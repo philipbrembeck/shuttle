@@ -1,3 +1,4 @@
+pub mod cmux;
 pub mod ghostty;
 
 use crate::config::model::{CommandHost, Config};
