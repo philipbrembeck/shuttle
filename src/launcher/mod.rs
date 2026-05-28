@@ -144,22 +144,25 @@ fn resolve_backend(
             "iterm-nightly" => Ok(Backend::ITerm {
                 version: ITermVersion::Nightly,
             }),
-            "ghostty-open" => Ok(Backend::GhosttyOpen),
+            "ghostty" | "ghostty-open" => Ok(Backend::GhosttyOpen),
             "ghostty-applescript" => Ok(Backend::GhosttyAppleScript),
-            "cmux-cli" => Ok(Backend::CmuxCli),
+            "cmux" | "cmux-cli" => Ok(Backend::CmuxCli),
             "cmux-socket" => Ok(Backend::CmuxSocket),
             "screen" | "virtual" => Ok(Backend::Screen),
             invalid => Err(LaunchError::Backend(invalid.to_string())),
         };
     }
 
-    if config
+    let terminal = config
         .terminal
         .as_deref()
         .unwrap_or("Terminal.app")
-        .to_lowercase()
-        .contains("iterm")
-    {
+        .to_lowercase();
+    if terminal.contains("ghostty") {
+        Ok(Backend::GhosttyOpen)
+    } else if terminal.contains("cmux") {
+        Ok(Backend::CmuxCli)
+    } else if terminal.contains("iterm") {
         Ok(Backend::ITerm {
             version: normalize_iterm_version(config.iterm_version.as_deref())?,
         })
@@ -321,5 +324,29 @@ mod tests {
             normalize(&Config::default(), &host, "Menu"),
             Err(LaunchError::Target("sideways".into()))
         );
+    }
+
+    #[test]
+    fn terminal_key_ghostty_maps_to_ghostty_open() {
+        let config = Config {
+            terminal: Some("Ghostty".into()),
+            ..Config::default()
+        };
+        let LaunchKind::Terminal(request) = normalize(&config, &host(), "Menu").unwrap() else {
+            panic!("terminal expected")
+        };
+        assert_eq!(request.backend, Backend::GhosttyOpen);
+    }
+
+    #[test]
+    fn terminal_key_cmux_maps_to_cmux_cli() {
+        let config = Config {
+            terminal: Some("cmux".into()),
+            ..Config::default()
+        };
+        let LaunchKind::Terminal(request) = normalize(&config, &host(), "Menu").unwrap() else {
+            panic!("terminal expected")
+        };
+        assert_eq!(request.backend, Backend::CmuxCli);
     }
 }

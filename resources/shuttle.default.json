@@ -1,7 +1,7 @@
 {
   "_comments": [
-    "Valid legacy terminals include: 'Terminal.app' or 'iTerm'",
-    "Optional backend values include: 'terminal-app', 'iterm-stable', 'iterm-nightly', 'ghostty-open', 'ghostty-applescript', 'cmux-cli', 'cmux-socket', or 'screen'",
+    "Valid terminals: 'Terminal.app', 'iTerm', 'Ghostty', or 'cmux'",
+    "Optional backend values for finer control: 'terminal-app', 'iterm-stable', 'iterm-nightly', 'ghostty-open', 'ghostty-applescript', 'cmux-cli', 'cmux-socket', or 'screen'",
     "Optional strategy values include: 'default', 'workspace', 'socket', or 'applescript'",
     "In the editor value change 'default' to 'nano', 'vi', or another terminal based editor.",
     "Hosts will also be read from your ~/.ssh/config or /etc/ssh_config file, if available",

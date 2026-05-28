@@ -66,15 +66,15 @@ An optional second config can add extra hosts. Shuttle checks `~/.shuttle-alt.pa
 |-----|-------------|--------|
 | `editor` | App to open config with via Configure... | `"default"` (system default), or a terminal editor name like `"nano"`, `"vi"` |
 | `launch_at_login` | Start Shuttle on login | `true` / `false` |
-| `terminal` | Legacy terminal selection | `"Terminal.app"` or `"iTerm"` |
+| `terminal` | Terminal to use | `"Terminal.app"`, `"iTerm"`, `"Ghostty"`, `"cmux"` |
 | `iTerm_version` | iTerm variant | `"stable"` or `"nightly"` |
 | `default_theme` | Default terminal profile/theme | Any string (e.g. `"Homebrew"`, `"Default"`) |
 | `open_in` | Default window mode | `"new"`, `"tab"` |
 | `show_ssh_config_hosts` | Import hosts from SSH config | `true` / `false` |
 | `ssh_config_ignore_hosts` | Exact host names to skip | Array of strings |
 | `ssh_config_ignore_keywords` | Substrings to filter out | Array of strings |
-| `backend` | Global launch backend (optional, new) | See [Backends](#backends) |
-| `strategy` | Global launch strategy (optional, new) | See [Strategies](#strategies) |
+| `backend` | Explicit backend override (optional) | See [Backends](#backends) |
+| `strategy` | Launch strategy hint (optional) | See [Strategies](#strategies) |
 
 ### Per-host settings
 
@@ -139,7 +139,16 @@ Host prod
 
 ## Backends
 
-Shuttle supports multiple terminal backends. Set `backend` globally or per-host. If omitted, legacy `terminal` / `iTerm_version` settings are used.
+Shuttle supports multiple terminal backends. The simplest way is the `terminal` key:
+
+```json
+{ "terminal": "Terminal.app" }
+{ "terminal": "iTerm" }
+{ "terminal": "Ghostty" }
+{ "terminal": "cmux" }
+```
+
+For finer control, use the `backend` key (globally or per-host). If both are set, `backend` wins.
 
 ### Terminal.app (default)
 
@@ -173,6 +182,14 @@ Supports `new`, `tab`, `current`, and `virtual` modes via bundled AppleScripts.
 ### Ghostty
 
 Ghostty is supported through two backends:
+
+The simplest config:
+
+```json
+{ "terminal": "Ghostty" }
+```
+
+This uses `ghostty-open` by default. For finer control, two explicit backends are available:
 
 #### ghostty-open
 
@@ -211,6 +228,14 @@ Uses Ghostty's AppleScript API (requires Ghostty 1.3+):
 ### cmux
 
 cmux is supported through two backends:
+
+The simplest config:
+
+```json
+{ "terminal": "cmux" }
+```
+
+This uses `cmux-cli` by default. For finer control, two explicit backends are available:
 
 #### cmux-cli
 
