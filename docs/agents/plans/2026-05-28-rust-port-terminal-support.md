@@ -256,7 +256,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [ ] Implement URL opening through the macOS workspace API.
 - [ ] Implement Terminal.app AppleScript strategy matching existing `new`, `tab`, and `current` modes.
 - [ ] Implement iTerm stable/nightly AppleScript strategies matching existing `new`, `tab`, and `current` modes.
-- [ ] Implement virtual/background execution with `screen -d -m -S <title> <cmd>`.
+- [x] Implement virtual/background execution with `screen -d -m -S <title> <cmd>`.
 - [ ] Port import, export, configure, about, and quit menu actions where they are part of the current menu.
 
 **Automated Verification**:

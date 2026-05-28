@@ -66,6 +66,9 @@ fn collect_launch_requests(config: &config::model::Config, entries: &[config::mo
                             let _ = launcher::cmux::socket_path();
                             let _ = launcher::cmux::socket_launch_request(1, &request);
                         }
+                        launcher::Backend::Screen => {
+                            let _ = launcher::virtual_screen::screen_args(&request);
+                        }
                         _ => {}
                     }
                 }

@@ -1,5 +1,6 @@
 pub mod cmux;
 pub mod ghostty;
+pub mod virtual_screen;
 
 use crate::config::model::{CommandHost, Config};
 use thiserror::Error;
