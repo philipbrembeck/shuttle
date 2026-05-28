@@ -182,6 +182,31 @@ fn modified(path: &Path) -> Option<SystemTime> {
     fs::metadata(path).and_then(|m| m.modified()).ok()
 }
 
+/// Merge SSH config hosts into `config.hosts` only when `show_ssh_config_hosts` is enabled.
+/// This is the single authoritative place for the check.
+pub fn apply_ssh_hosts(config: &mut Config) {
+    if !config.show_ssh_config_hosts.unwrap_or(true) {
+        return;
+    }
+    let mut ssh_hosts = std::collections::BTreeMap::new();
+    if let Ok(hosts) = ssh::parse_file(Path::new("/etc/ssh/ssh_config")) {
+        ssh_hosts.extend(hosts);
+    }
+    if let Ok(home) = home_dir() {
+        if let Ok(hosts) = ssh::parse_file(&home.join(".ssh/config")) {
+            ssh_hosts.extend(hosts);
+        }
+    }
+    let ignore_hosts = config.ssh_config_ignore_hosts.clone();
+    let ignore_keywords = config.ssh_config_ignore_keywords.clone();
+    ssh::merge_hosts(
+        &mut config.hosts,
+        &ssh_hosts,
+        &ignore_hosts,
+        &ignore_keywords,
+    );
+}
+
 fn home_dir() -> Result<PathBuf, ConfigError> {
     dirs::home_dir().ok_or(ConfigError::MissingHome)
 }

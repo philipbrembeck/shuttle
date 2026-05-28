@@ -14,19 +14,49 @@ pub fn run() {
         let delegate = crate::macos::delegate::create_delegate();
         let _: () = msg_send![delegate, retain];
 
-        let status_item = match crate::build_menu_entries() {
+        let (entries, config, paths, snapshot) = match crate::build_menu_entries() {
             Ok((entries, config)) => {
-                crate::macos::menu::install_status_menu(&entries, &config, delegate)
+                let paths = crate::config::discover_paths().unwrap_or_else(|_| {
+                    crate::config::ConfigPaths {
+                        main: dirs::home_dir()
+                            .unwrap_or_default()
+                            .join(".config/shuttle/config.json"),
+                        alt: None,
+                        used_main_override: false,
+                    }
+                });
+                let snapshot = crate::config::snapshot(&paths);
+                (entries, config, paths, snapshot)
             }
             Err(error) => {
                 eprintln!("Shuttle config error: {error}");
                 let entries = crate::menu_model::error_menu("Error parsing config");
                 let config = crate::config::model::Config::default();
-                crate::macos::menu::install_status_menu(&entries, &config, delegate)
+                let paths = crate::config::ConfigPaths {
+                    main: dirs::home_dir()
+                        .unwrap_or_default()
+                        .join(".config/shuttle/config.json"),
+                    alt: None,
+                    used_main_override: false,
+                };
+                let snapshot = crate::config::ReloadSnapshot::default();
+                (entries, config, paths, snapshot)
             }
         };
 
+        // Apply launch-at-login preference
+        if config.launch_at_login {
+            if let Err(e) = crate::macos::login_item::set_launch_at_login(true) {
+                eprintln!("Shuttle: launch-at-login error: {e}");
+            }
+        }
+
+        let status_item = crate::macos::menu::install_status_menu(&entries, &config, delegate);
         let _: () = msg_send![status_item, retain];
+
+        // Store global state so the menu delegate can hot-reload
+        crate::macos::state::init(paths, snapshot, delegate, status_item);
+
         app.run();
     }
 }

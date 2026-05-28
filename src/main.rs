@@ -25,21 +25,7 @@ pub fn build_menu_entries(
     config::ensure_default_config(&paths)?;
     let before = config::snapshot(&paths);
     let mut config = config::load_merged(&paths)?;
-    let mut ssh_hosts = std::collections::BTreeMap::new();
-    if let Ok(hosts) = config::ssh::parse_file(std::path::Path::new("/etc/ssh/ssh_config")) {
-        ssh_hosts.extend(hosts);
-    }
-    if let Some(home) = dirs::home_dir() {
-        if let Ok(hosts) = config::ssh::parse_file(&home.join(".ssh/config")) {
-            ssh_hosts.extend(hosts);
-        }
-    }
-    config::ssh::merge_hosts(
-        &mut config.hosts,
-        &ssh_hosts,
-        &config.ssh_config_ignore_hosts,
-        &config.ssh_config_ignore_keywords,
-    );
+    config::apply_ssh_hosts(&mut config);
     #[cfg(target_os = "macos")]
     let _ = macos::login_item::set_launch_at_login(config.launch_at_login);
     let menu = menu_model::with_separators(menu_model::build(&config.hosts));

@@ -48,32 +48,49 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
 
 // ── Native menu construction ──────────────────────────────────────────────────
 
+/// Rebuild and replace the menu on an existing status item (called on hot reload).
+#[cfg(target_os = "macos")]
+pub unsafe fn rebuild_menu(status_item: id, entries: &[MenuEntry], config: &Config, delegate: id) {
+    use cocoa::appkit::NSStatusItem;
+    let menu = build_full_menu(entries, config, delegate);
+    status_item.setMenu_(menu);
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) -> id {
+    let menu = build_ns_menu(entries, config);
+
+    menu.addItem_(NSMenuItem::separatorItem(nil));
+
+    for (label, action) in [
+        ("Configure...", sel!(shuttleConfigure:)),
+        ("Import...", sel!(shuttleImport:)),
+        ("Export...", sel!(shuttleExport:)),
+    ] {
+        let item = titled_action_item(label, action);
+        item.setTarget_(delegate);
+        menu.addItem_(item);
+    }
+
+    let about = titled_action_item("About Shuttle", sel!(orderFrontStandardAboutPanel:));
+    menu.addItem_(about);
+
+    let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+        NSString::alloc(nil).init_str("Quit"),
+        sel!(terminate:),
+        NSString::alloc(nil).init_str("q"),
+    );
+    menu.addItem_(quit);
+
+    // Wire the delegate so menuWillOpen: fires for hot reload
+    let _: () = msg_send![menu, setDelegate: delegate];
+    menu
+}
+
 #[cfg(target_os = "macos")]
 pub fn install_status_menu(entries: &[MenuEntry], config: &Config, delegate: id) -> id {
     unsafe {
-        let menu = build_ns_menu(entries, config);
-
-        menu.addItem_(NSMenuItem::separatorItem(nil));
-
-        for (label, action) in [
-            ("Configure...", sel!(shuttleConfigure:)),
-            ("Import...", sel!(shuttleImport:)),
-            ("Export...", sel!(shuttleExport:)),
-        ] {
-            let item = titled_action_item(label, action);
-            item.setTarget_(delegate);
-            menu.addItem_(item);
-        }
-
-        let about = titled_action_item("About Shuttle", sel!(orderFrontStandardAboutPanel:));
-        menu.addItem_(about);
-
-        let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
-            NSString::alloc(nil).init_str("Quit"),
-            sel!(terminate:),
-            NSString::alloc(nil).init_str("q"),
-        );
-        menu.addItem_(quit);
+        let menu = build_full_menu(entries, config, delegate);
 
         // Build status item
         let status_bar = NSStatusBar::systemStatusBar(nil);

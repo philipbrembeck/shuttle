@@ -4,3 +4,4 @@ pub mod delegate;
 pub mod executor;
 pub mod login_item;
 pub mod menu;
+pub mod state;
