@@ -17,15 +17,31 @@ open target/release/Shuttle.app
 
 ## Configuration
 
-Shuttle reads `~/.shuttle.json` on first launch and creates it from a bundled default if missing. Override the config path by writing a file path into `~/.shuttle.path`:
+Shuttle stores its config at:
+
+```
+~/.config/shuttle/config.json
+```
+
+On first launch it creates this file from a bundled default. You can edit it directly or use **Configure...** from the menu.
+
+### Migrating from legacy location
+
+If `~/.shuttle.json` exists and `~/.config/shuttle/config.json` does not, Shuttle automatically copies it to the new location on startup. No manual action needed.
+
+### Override config path
+
+To use a custom path, write its absolute path to `~/.shuttle.path`:
 
 ```sh
-echo '/path/to/my/shuttle.json' > ~/.shuttle.path
+echo '/path/to/my/config.json' > ~/.shuttle.path
+# Remove it to go back to the default:
+rm ~/.shuttle.path
 ```
 
 ### Alternate config
 
-An optional second config can add extra hosts. Shuttle checks `~/.shuttle-alt.path` (custom path) or `~/.shuttle-alt.json` (default location). Hosts from the alternate config are appended to the main host list.
+An optional second config can add extra hosts. Shuttle checks `~/.shuttle-alt.path` (custom path), `~/.config/shuttle/alt.json`, or `~/.shuttle-alt.json` (legacy). Hosts from the alternate config are appended to the main host list.
 
 ### Config format
 
@@ -328,10 +344,19 @@ Output: `target/release/Shuttle.app`
 ## Testing with isolated config
 
 ```sh
+# Point Shuttle at a throwaway config:
 cp tests/.shuttle.json /tmp/shuttle-test.json
 printf '/tmp/shuttle-test.json\n' > ~/.shuttle.path
 open target/release/Shuttle.app
-# Remove ~/.shuttle.path when done
+
+# Always clean up afterward so the real config is used:
+rm ~/.shuttle.path
+```
+
+If you ran this before and forgot to clean up, just remove the file:
+
+```sh
+rm ~/.shuttle.path
 ```
 
 ## Troubleshooting

@@ -10,13 +10,20 @@ use thiserror::Error;
 
 const DEFAULT_CONFIG: &str = include_str!("../../resources/shuttle.default.json");
 
+/// XDG-style default config directory: ~/.config/shuttle/
+pub const CONFIG_DIR_NAME: &str = "shuttle";
+/// Default config file name inside the config dir.
+pub const CONFIG_FILE_NAME: &str = "config.json";
+/// Legacy home-root config path kept for migration.
+pub const LEGACY_CONFIG_FILE: &str = ".shuttle.json";
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("could not determine the current home directory")]
     MissingHome,
     #[error("I/O error for {path}: {source}")]
     Io { path: PathBuf, source: io::Error },
-    #[error("invalid JSON in {path}: {source}. Validate the file with `python3 -m json.tool {path}` and fix the syntax before reloading Shuttle.")]
+    #[error("invalid JSON in {path}: {source}. Validate with `python3 -m json.tool {path}` and fix the syntax before reloading Shuttle.")]
     Json {
         path: PathBuf,
         source: serde_json::Error,
@@ -43,33 +50,80 @@ pub fn discover_paths() -> Result<ConfigPaths, ConfigError> {
 }
 
 pub fn discover_paths_in(home: PathBuf) -> Result<ConfigPaths, ConfigError> {
-    let main_override = home.join(".shuttle.path");
-    let (main, used_main_override) = if main_override.exists() {
-        (read_path_file(&main_override)?, true)
+    // Explicit override via ~/.shuttle.path wins over everything.
+    let override_file = home.join(".shuttle.path");
+    if override_file.exists() {
+        let main = read_path_file(&override_file)?;
+        let alt = resolve_alt_path(&home);
+        return Ok(ConfigPaths {
+            main,
+            alt,
+            used_main_override: true,
+        });
+    }
+
+    // Preferred location: ~/.config/shuttle/config.json
+    let config_dir = home.join(".config").join(CONFIG_DIR_NAME);
+    let preferred = config_dir.join(CONFIG_FILE_NAME);
+
+    // Legacy location: ~/.shuttle.json (migrate automatically if found)
+    let legacy = home.join(LEGACY_CONFIG_FILE);
+
+    let main = if preferred.exists() {
+        preferred
+    } else if legacy.exists() {
+        // Migrate: copy legacy → preferred location and keep using it
+        if let Ok(()) = fs::create_dir_all(&config_dir) {
+            let _ = fs::copy(&legacy, &preferred);
+        }
+        if preferred.exists() {
+            preferred
+        } else {
+            legacy
+        }
     } else {
-        (home.join(".shuttle.json"), false)
+        // Neither exists — first run, use preferred location
+        preferred
     };
 
-    let alt_override = home.join(".shuttle-alt.path");
-    let default_alt = home.join(".shuttle-alt.json");
-    let alt = if alt_override.exists() {
-        Some(read_path_file(&alt_override)?)
-    } else if default_alt.exists() {
-        Some(default_alt)
-    } else {
-        None
-    };
-
+    let alt = resolve_alt_path(&home);
     Ok(ConfigPaths {
         main,
         alt,
-        used_main_override,
+        used_main_override: false,
     })
 }
 
+/// Resolve the alternate config path.
+fn resolve_alt_path(home: &Path) -> Option<PathBuf> {
+    let alt_override = home.join(".shuttle-alt.path");
+    if alt_override.exists() {
+        read_path_file(&alt_override).ok()
+    } else {
+        // Check both locations for the alternate config.
+        let preferred_alt = home.join(".config").join(CONFIG_DIR_NAME).join("alt.json");
+        let legacy_alt = home.join(".shuttle-alt.json");
+        if preferred_alt.exists() {
+            Some(preferred_alt)
+        } else if legacy_alt.exists() {
+            Some(legacy_alt)
+        } else {
+            None
+        }
+    }
+}
+
+/// Write the bundled default config on first run.
 pub fn ensure_default_config(paths: &ConfigPaths) -> Result<(), ConfigError> {
     if paths.used_main_override || paths.main.exists() {
         return Ok(());
+    }
+    // Make sure the directory exists.
+    if let Some(parent) = paths.main.parent() {
+        fs::create_dir_all(parent).map_err(|source| ConfigError::Io {
+            path: parent.to_path_buf(),
+            source,
+        })?;
     }
     fs::write(&paths.main, DEFAULT_CONFIG).map_err(|source| ConfigError::Io {
         path: paths.main.clone(),
@@ -91,8 +145,9 @@ pub fn load_config(path: &Path) -> Result<Config, ConfigError> {
 pub fn load_merged(paths: &ConfigPaths) -> Result<Config, ConfigError> {
     let mut config = load_config(&paths.main)?;
     if let Some(alt) = &paths.alt {
-        let mut alt_config = load_config(alt)?;
-        config.hosts.append(&mut alt_config.hosts);
+        if let Ok(mut alt_config) = load_config(alt) {
+            config.hosts.append(&mut alt_config.hosts);
+        }
     }
     Ok(config)
 }
@@ -124,9 +179,7 @@ fn read_path_file(path: &Path) -> Result<PathBuf, ConfigError> {
 }
 
 fn modified(path: &Path) -> Option<SystemTime> {
-    fs::metadata(path)
-        .and_then(|metadata| metadata.modified())
-        .ok()
+    fs::metadata(path).and_then(|m| m.modified()).ok()
 }
 
 fn home_dir() -> Result<PathBuf, ConfigError> {
@@ -138,16 +191,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn discovers_default_config_path() {
+    fn prefers_xdg_config_path_on_first_run() {
         let temp = tempfile::tempdir().unwrap();
         let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
-        assert_eq!(paths.main, temp.path().join(".shuttle.json"));
-        assert_eq!(paths.alt, None);
+        assert_eq!(
+            paths.main,
+            temp.path().join(".config/shuttle/config.json"),
+            "default should be ~/.config/shuttle/config.json"
+        );
         assert!(!paths.used_main_override);
     }
 
     #[test]
-    fn discovers_main_override_path() {
+    fn override_path_file_wins_over_everything() {
         let temp = tempfile::tempdir().unwrap();
         fs::write(temp.path().join(".shuttle.path"), "/tmp/custom.json\n").unwrap();
         let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
@@ -156,19 +212,32 @@ mod tests {
     }
 
     #[test]
-    fn discovers_alt_override_and_default_alt() {
+    fn migrates_legacy_config_to_xdg_on_first_run() {
         let temp = tempfile::tempdir().unwrap();
-        fs::write(temp.path().join(".shuttle-alt.json"), "{}").unwrap();
+        let legacy = temp.path().join(".shuttle.json");
+        fs::write(&legacy, DEFAULT_CONFIG).unwrap();
         let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
-        assert_eq!(paths.alt, Some(temp.path().join(".shuttle-alt.json")));
-
-        fs::write(temp.path().join(".shuttle-alt.path"), "/tmp/alt.json\n").unwrap();
-        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
-        assert_eq!(paths.alt, Some(PathBuf::from("/tmp/alt.json")));
+        let preferred = temp.path().join(".config/shuttle/config.json");
+        // Should point to the preferred location after migration
+        assert_eq!(paths.main, preferred);
+        assert!(
+            preferred.exists(),
+            "config should be copied to XDG location"
+        );
     }
 
     #[test]
-    fn copies_default_config_on_first_run() {
+    fn uses_xdg_when_it_already_exists() {
+        let temp = tempfile::tempdir().unwrap();
+        let preferred = temp.path().join(".config/shuttle/config.json");
+        fs::create_dir_all(preferred.parent().unwrap()).unwrap();
+        fs::write(&preferred, DEFAULT_CONFIG).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.main, preferred);
+    }
+
+    #[test]
+    fn creates_config_dir_on_first_run() {
         let temp = tempfile::tempdir().unwrap();
         let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
         ensure_default_config(&paths).unwrap();
@@ -177,7 +246,17 @@ mod tests {
     }
 
     #[test]
-    fn loads_legacy_default_json() {
+    fn alt_config_found_at_xdg_location() {
+        let temp = tempfile::tempdir().unwrap();
+        let alt = temp.path().join(".config/shuttle/alt.json");
+        fs::create_dir_all(alt.parent().unwrap()).unwrap();
+        fs::write(&alt, "{}").unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.alt, Some(alt));
+    }
+
+    #[test]
+    fn loads_default_config_json() {
         let config: Config = serde_json::from_str(DEFAULT_CONFIG).unwrap();
         assert_eq!(config.terminal.as_deref(), Some("Terminal.app"));
         assert!(!config.hosts.is_empty());
@@ -186,11 +265,8 @@ mod tests {
     #[test]
     fn invalid_json_returns_structured_error() {
         let temp = tempfile::tempdir().unwrap();
-        let config_path = temp.path().join("bad.json");
-        fs::write(&config_path, "{ nope").unwrap();
-        assert!(matches!(
-            load_config(&config_path),
-            Err(ConfigError::Json { .. })
-        ));
+        let bad = temp.path().join("bad.json");
+        fs::write(&bad, "{ nope").unwrap();
+        assert!(matches!(load_config(&bad), Err(ConfigError::Json { .. })));
     }
 }
