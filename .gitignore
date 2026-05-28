@@ -1,5 +1,8 @@
 .DS_Store
 
+# Rust
+target/
+
 # Xcode
 build/*
 *.pbxuser
