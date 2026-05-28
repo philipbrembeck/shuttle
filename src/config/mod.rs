@@ -37,12 +37,6 @@ pub struct ReloadSnapshot {
     pub ssh_user: Option<SystemTime>,
 }
 
-pub fn load_default() -> Result<Config, ConfigError> {
-    let paths = discover_paths()?;
-    ensure_default_config(&paths)?;
-    load_config(&paths.main)
-}
-
 pub fn discover_paths() -> Result<ConfigPaths, ConfigError> {
     discover_paths_in(home_dir()?)
 }

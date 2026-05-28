@@ -221,19 +221,19 @@ Establish strict formatting, linting, and testing rules immediately after the Ru
 **Dependencies**: **Phase 1**
 
 **Tasks**:
-- [ ] Add `rustfmt` configuration and document the required `cargo fmt --check` workflow.
-- [ ] Add strict Clippy configuration for the workspace, including `-D warnings` and project-approved deny/warn rules that fit a small native macOS app.
-- [ ] Add baseline test layout and conventions for unit tests, integration tests, macOS-bound tests, and fake process/socket tests.
-- [ ] Add a single local verification command or script that runs format, lint, tests, and build checks in the same order expected by CI/pre-commit.
-- [ ] Add pre-commit hooks via Rust Husky so staged Rust/config/docs changes run formatting, linting, and relevant tests before commit.
-- [ ] Document how to install, update, bypass, and troubleshoot the Rust Husky hooks for contributors.
-- [ ] Ensure generated/build artifacts from hooks and tests are ignored and do not pollute the repository.
+- [x] Add `rustfmt` configuration and document the required `cargo fmt --check` workflow.
+- [x] Add strict Clippy configuration for the workspace, including `-D warnings` and project-approved deny/warn rules that fit a small native macOS app.
+- [x] Add baseline test layout and conventions for unit tests, integration tests, macOS-bound tests, and fake process/socket tests.
+- [x] Add a single local verification command or script that runs format, lint, tests, and build checks in the same order expected by CI/pre-commit.
+- [x] Add pre-commit hooks via Rust Husky so staged Rust/config/docs changes run formatting, linting, and relevant tests before commit.
+- [x] Document how to install, update, bypass, and troubleshoot the Rust Husky hooks for contributors.
+- [x] Ensure generated/build artifacts from hooks and tests are ignored and do not pollute the repository.
 
 **Automated Verification**:
-- [ ] `cargo fmt --check` passes.
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes.
-- [ ] `cargo test` passes.
-- [ ] The local all-checks script passes from a clean checkout after hook installation.
+- [x] `cargo fmt --check` passes.
+- [x] `cargo clippy --all-targets --all-features -- -D warnings` passes.
+- [x] `cargo test` passes.
+- [x] The local all-checks script passes from a clean checkout after hook installation.
 - [ ] A Rust Husky hook dry run or equivalent local invocation runs the expected checks and fails on an intentional formatting/lint error.
 
 ---
