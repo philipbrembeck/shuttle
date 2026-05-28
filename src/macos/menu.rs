@@ -52,6 +52,7 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
 #[cfg(target_os = "macos")]
 pub unsafe fn rebuild_menu(status_item: id, entries: &[MenuEntry], config: &Config, delegate: id) {
     use cocoa::appkit::NSStatusItem;
+    let _pool = cocoa::foundation::NSAutoreleasePool::new(nil);
     let menu = build_full_menu(entries, config, delegate);
     status_item.setMenu_(menu);
 }
@@ -62,6 +63,10 @@ unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) 
 
     menu.addItem_(NSMenuItem::separatorItem(nil));
 
+    // ── Configuration submenu ────────────────────────────────────────────────
+    let config_submenu = NSMenu::new(nil).autorelease();
+    let _: () = msg_send![config_submenu, setAutoenablesItems: NO];
+
     for (label, action) in [
         ("Configure...", sel!(shuttleConfigure:)),
         ("Import...", sel!(shuttleImport:)),
@@ -69,12 +74,25 @@ unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) 
     ] {
         let item = titled_action_item(label, action);
         item.setTarget_(delegate);
-        menu.addItem_(item);
+        config_submenu.addItem_(item);
     }
 
-    let about = titled_action_item("About Shuttle", sel!(orderFrontStandardAboutPanel:));
-    menu.addItem_(about);
+    config_submenu.addItem_(NSMenuItem::separatorItem(nil));
 
+    let about = titled_action_item("About Shuttle", sel!(orderFrontStandardAboutPanel:));
+    config_submenu.addItem_(about);
+
+    let config_header = NSMenuItem::alloc(nil)
+        .initWithTitle_action_keyEquivalent_(
+            NSString::alloc(nil).init_str("Configuration"),
+            sel!(noop:),
+            NSString::alloc(nil).init_str(""),
+        )
+        .autorelease();
+    config_header.setSubmenu_(config_submenu);
+    menu.addItem_(config_header);
+
+    // ── Quit ─────────────────────────────────────────────────────────────────
     let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
         NSString::alloc(nil).init_str("Quit"),
         sel!(terminate:),

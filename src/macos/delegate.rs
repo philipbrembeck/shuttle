@@ -25,6 +25,10 @@ pub fn register_delegate_class() -> &'static Class {
                 menu_will_open as extern "C" fn(&Object, Sel, id),
             );
             decl.add_method(
+                sel!(checkReload:),
+                check_reload as extern "C" fn(&Object, Sel, id),
+            );
+            decl.add_method(
                 sel!(shuttleConfigure:),
                 shuttle_configure as extern "C" fn(&Object, Sel, id),
             );
@@ -52,7 +56,11 @@ pub fn create_delegate() -> id {
 // ── NSMenuDelegate ────────────────────────────────────────────────────────────
 
 extern "C" fn menu_will_open(_this: &Object, _sel: Sel, _menu: id) {
-    // Check timestamps and rebuild if any watched file changed.
+    crate::macos::state::reload_if_needed();
+}
+
+/// Fired by the NSTimer in app.rs every second — reliable hot reload fallback.
+extern "C" fn check_reload(_this: &Object, _sel: Sel, _timer: id) {
     crate::macos::state::reload_if_needed();
 }
 

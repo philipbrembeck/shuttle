@@ -1,9 +1,9 @@
 #![allow(deprecated, unexpected_cfgs)]
 
 use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicyAccessory};
-use cocoa::base::nil;
+use cocoa::base::{id, nil, YES};
 use cocoa::foundation::NSAutoreleasePool;
-use objc::{msg_send, sel, sel_impl};
+use objc::{class, msg_send, sel, sel_impl};
 
 pub fn run() {
     unsafe {
@@ -56,6 +56,18 @@ pub fn run() {
 
         // Store global state so the menu delegate can hot-reload
         crate::macos::state::init(paths, snapshot, delegate, status_item);
+
+        // NSTimer fires every second to check for config file changes.
+        // This is more reliable than relying solely on NSMenuDelegate.menuWillOpen:
+        let timer: id = msg_send![
+            class!(NSTimer),
+            scheduledTimerWithTimeInterval: 1.0_f64
+            target: delegate
+            selector: sel!(checkReload:)
+            userInfo: nil
+            repeats: YES
+        ];
+        let _: () = msg_send![timer, retain];
 
         app.run();
     }
