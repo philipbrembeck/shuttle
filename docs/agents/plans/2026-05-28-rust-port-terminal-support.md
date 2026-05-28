@@ -371,7 +371,7 @@ Finish the port as an installable app with clear compatibility and migration gui
 - [ ] Preserve or replace launch-at-login behavior in a Rust-compatible way appropriate for supported macOS versions.
 - [x] Add a migration guide explaining existing config compatibility and new backend/strategy keys.
 - [x] Add terminal support documentation for Terminal.app, iTerm, Ghostty, cmux, URL commands, and virtual/screen mode.
-- [ ] Add troubleshooting docs for Automation permission, missing terminal apps, cmux socket access, and config parse errors.
+- [x] Add troubleshooting docs for Automation permission, missing terminal apps, cmux socket access, and config parse errors.
 - [ ] Add packaging/release instructions for building the `.app` bundle.
 - [ ] Audit all user-visible errors for actionable messages.
 - [ ] Decide whether the Objective-C app remains in-tree during transition or moves under a legacy directory after the Rust app reaches parity.
