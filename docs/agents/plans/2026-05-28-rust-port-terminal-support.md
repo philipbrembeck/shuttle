@@ -252,7 +252,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [x] Implement SSH host filtering for wildcards, dot-prefixed names, exact ignored hosts, and ignored keyword substrings.
 - [x] Implement SSH path splitting by `/` and merging into the config menu tree.
 - [ ] Implement `src/macos/menu.rs` to build native `NSMenu` / `NSMenuItem` trees from the normalized menu model.
-- [ ] Implement `LaunchRequest` normalization in `src/launcher/mod.rs`, including command, title fallback, theme fallback, target validation, URL detection, and legacy terminal mapping.
+- [x] Implement `LaunchRequest` normalization in `src/launcher/mod.rs`, including command, title fallback, theme fallback, target validation, URL detection, and legacy terminal mapping.
 - [ ] Implement URL opening through the macOS workspace API.
 - [ ] Implement Terminal.app AppleScript strategy matching existing `new`, `tab`, and `current` modes.
 - [ ] Implement iTerm stable/nightly AppleScript strategies matching existing `new`, `tab`, and `current` modes.
@@ -260,11 +260,11 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [ ] Port import, export, configure, about, and quit menu actions where they are part of the current menu.
 
 **Automated Verification**:
-- [ ] `cargo check` passes.
-- [ ] `cargo fmt --check` and strict Clippy checks pass.
+- [x] `cargo check` passes.
+- [x] `cargo fmt --check` and strict Clippy checks pass.
 - [x] Menu model tests cover nested menus, leaves, sorting, sort marker stripping, and separator markers.
 - [x] SSH parser tests cover `Host`, multiple aliases, `Include`, `# shuttle.name`, wildcard filtering, ignored hosts, and ignored keywords.
-- [ ] Launch normalization tests cover legacy Terminal.app, iTerm stable/nightly, URL commands, invalid `inTerminal`, title fallback, theme fallback, and virtual target mapping.
+- [x] Launch normalization tests cover legacy Terminal.app, iTerm stable/nightly, URL commands, invalid `inTerminal`, title fallback, theme fallback, and virtual target mapping.
 
 **Manual Verification**:
 - [ ] Use `tests/.shuttle.json` through `~/.shuttle.path` and verify the Rust app menu visually matches the Objective-C app menu structure.

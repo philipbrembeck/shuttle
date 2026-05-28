@@ -1,4 +1,5 @@
 mod config;
+mod launcher;
 #[cfg(target_os = "macos")]
 mod macos;
 mod menu_model;
@@ -36,7 +37,23 @@ fn bootstrap_config() -> Result<(), config::ConfigError> {
         &config.ssh_config_ignore_keywords,
     );
     let _menu = menu_model::with_separators(menu_model::build(&config.hosts));
+    collect_launch_requests(&config, &config.hosts);
     let after = config::snapshot(&paths);
     let _needs_reload = config::needs_reload(&before, &after);
     Ok(())
+}
+
+fn collect_launch_requests(config: &config::model::Config, entries: &[config::model::HostEntry]) {
+    for entry in entries {
+        match entry {
+            config::model::HostEntry::Command(command) => {
+                let _ = launcher::normalize(config, command, &command.name);
+            }
+            config::model::HostEntry::Menu(children) => {
+                for child_entries in children.values() {
+                    collect_launch_requests(config, child_entries);
+                }
+            }
+        }
+    }
 }
