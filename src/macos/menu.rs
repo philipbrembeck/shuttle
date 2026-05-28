@@ -89,6 +89,15 @@ unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) 
             NSString::alloc(nil).init_str(""),
         )
         .autorelease();
+    let gear_sym = NSString::alloc(nil).init_str("gearshape");
+    let gear_img: id = msg_send![
+        class!(NSImage),
+        imageWithSystemSymbolName: gear_sym
+        accessibilityDescription: nil
+    ];
+    if gear_img != nil {
+        let _: () = msg_send![config_header, setImage: gear_img];
+    }
     config_header.setSubmenu_(config_submenu);
     menu.addItem_(config_header);
 
