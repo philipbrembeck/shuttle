@@ -1,11 +1,22 @@
 # Rust Port Transition Decision
 
-During the Rust port, the Objective-C application remains in-tree in its current `Shuttle/` and `Shuttle.xcodeproj/` locations.
+The repository has switched to the Rust implementation as the only in-tree application.
+
+Removed legacy implementation paths:
+
+- `Shuttle/`
+- `Shuttle.xcodeproj/`
+- `apple-scripts/`
+- Objective-C source, XIBs, and Xcode project metadata
+
+Kept compatibility resources:
+
+- `resources/apple-scpt/*.scpt` compiled AppleScript files used by Rust launch backends
+- `resources/shuttle.default.json`
+- `shuttle.icns`
 
 Rationale:
 
-- It is the compatibility oracle for config loading, menu ordering, SSH import, and legacy AppleScript behavior.
-- It remains buildable while the Rust AppKit shell reaches parity.
-- Keeping paths stable avoids Xcode project churn and accidental binary/resource movement.
-
-Revisit moving the Objective-C app under a legacy directory only after the Rust app has passed manual parity checks for menu rendering, Terminal.app, iTerm, URL, virtual, Ghostty, cmux, import/export/configure/about/quit, and launch-at-login behavior.
+- The Rust port is now the source of truth for config loading, menu modeling, and backend dispatch.
+- Keeping only the Rust app avoids split-brain maintenance during testing.
+- Compiled AppleScript resources remain because Terminal.app/iTerm/screen compatibility still depends on them.

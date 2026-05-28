@@ -11,14 +11,14 @@ status: draft
 
 ## Overview
 
-Port Shuttle from Objective-C/Cocoa to a lightweight native Rust macOS menu-bar app. The port should preserve existing `.shuttle.json` behavior by default, while adding a backend/strategy launch model that supports Terminal.app, iTerm, Ghostty, cmux, URL opening, and virtual/background execution.
+Port Shuttle to a lightweight native Rust macOS menu-bar app. The port should preserve existing `.shuttle.json` behavior by default, while adding a backend/strategy launch model that supports Terminal.app, iTerm, Ghostty, cmux, URL opening, and virtual/background execution.
 
 ## Current State Analysis
 
-Shuttle is currently a legacy Objective-C macOS menu-bar app with most behavior in `Shuttle/AppDelegate.m`:
+Shuttle started as a legacy Objective-C macOS menu-bar app. The repository now keeps only the Rust app implementation and compatibility resources.
 
 - Startup and config discovery happen in `awakeFromNib`, including `~/.shuttle.path`, default `~/.shuttle.json`, and alternate config path handling.
-- The app is menu-bar-only through `LSUIElement` in `Shuttle/Shuttle-Info.plist`.
+- The Rust app is menu-bar-only through `LSUIElement` in `resources/Shuttle-Info.plist`.
 - JSON parsing uses `NSJSONSerialization` and reads global preferences such as `terminal`, `editor`, `iTerm_version`, `open_in`, `default_theme`, `launch_at_login`, `hosts`, and SSH ignore lists.
 - SSH hosts are parsed from system/user SSH config with simple `Host`, `Include`, and `# shuttle.*` support.
 - Menu building recursively converts nested config objects into `NSMenu` trees, sorts menus/leaves independently, and strips `[aaa]` / `[---]` markers.
@@ -193,7 +193,7 @@ struct LaunchRequest {
 Create the minimal Rust app foundation and preserve the existing config loading contract.
 
 **Tasks**:
-- [x] Create a Rust app target and macOS app bundle metadata equivalent to `Shuttle/Shuttle-Info.plist`, including `LSUIElement` and Apple Events usage text.
+- [x] Create a Rust app target and macOS app bundle metadata in `resources/Shuttle-Info.plist`, including `LSUIElement` and Apple Events usage text.
 - [ ] Implement native AppKit lifecycle setup in `src/macos/app.rs`, including `NSApplication`, status item, icon loading, and menu delegate/callback wiring.
 - [x] Implement config path discovery in `src/config/mod.rs` for `~/.shuttle.path`, default `~/.shuttle.json`, `~/.shuttle-alt.path`, and default `~/.shuttle-alt.json`.
 - [x] Copy bundled `resources/shuttle.default.json` to the default config path on first run when no override exists.
@@ -205,7 +205,7 @@ Create the minimal Rust app foundation and preserve the existing config loading 
 **Automated Verification**:
 - [x] `cargo check` passes.
 - [x] Config path discovery unit tests cover default config, `~/.shuttle.path`, alt path, and alt default detection.
-- [x] JSON model tests load `Shuttle/shuttle.default.json` or the new copied equivalent successfully.
+- [x] JSON model tests load `resources/shuttle.default.json` successfully.
 - [x] Invalid JSON test produces a structured config error suitable for menu display.
 
 **Manual Verification**:
@@ -267,7 +267,7 @@ Port the visible menu behavior and preserve existing Terminal.app/iTerm/URL/virt
 - [x] Launch normalization tests cover legacy Terminal.app, iTerm stable/nightly, URL commands, invalid `inTerminal`, title fallback, theme fallback, and virtual target mapping.
 
 **Manual Verification**:
-- [ ] Use `tests/.shuttle.json` through `~/.shuttle.path` and verify the Rust app menu visually matches the Objective-C app menu structure.
+- [ ] Use `tests/.shuttle.json` through `~/.shuttle.path` and verify the Rust app menu visually matches the expected Shuttle menu structure.
 - [ ] Trigger a URL command and verify it opens in the default browser instead of a terminal.
 - [ ] Trigger Terminal.app `new`, `tab`, and `current` commands and verify command, title, and profile/theme behavior where supported.
 - [ ] Trigger iTerm stable/nightly commands and verify command, title, and profile behavior where supported.
@@ -374,7 +374,7 @@ Finish the port as an installable app with clear compatibility and migration gui
 - [x] Add troubleshooting docs for Automation permission, missing terminal apps, cmux socket access, and config parse errors.
 - [x] Add packaging/release instructions for building the `.app` bundle.
 - [x] Audit all user-visible errors for actionable messages.
-- [x] Decide whether the Objective-C app remains in-tree during transition or moves under a legacy directory after the Rust app reaches parity.
+- [x] Remove the legacy Objective-C/Xcode app and make the Rust port the only in-tree application before manual testing.
 
 **Automated Verification**:
 - [x] `cargo check` passes.
@@ -394,13 +394,13 @@ Finish the port as an installable app with clear compatibility and migration gui
 ## References
 
 - Research: `docs/agents/research/2026-05-28-rust-port-terminal-support.md`
-- Current app state: `Shuttle/AppDelegate.h`
-- Startup/config/menu/launch implementation: `Shuttle/AppDelegate.m`
-- App bundle metadata: `Shuttle/Shuttle-Info.plist`
-- Default config schema/examples: `Shuttle/shuttle.default.json`
-- Terminal.app scripts: `apple-scripts/terminal/*.applescript`
-- iTerm scripts: `apple-scripts/iTermStable/*.applescript`, `apple-scripts/iTermNightly/*.applescript`
-- Virtual/screen script: `apple-scripts/virtual/virtual-with-screen.applescript`
+- Rust config implementation: `src/config/`
+- Rust menu model: `src/menu_model.rs`
+- Rust launch implementation: `src/launcher/`
+- Rust macOS shell: `src/macos/`
+- App bundle metadata: `resources/Shuttle-Info.plist`
+- Default config schema/examples: `resources/shuttle.default.json`
+- Compiled AppleScript compatibility resources: `resources/apple-scpt/*.scpt`
 - Ghostty AppleScript docs: https://ghostty.org/docs/features/applescript
 - Ghostty scripting definition: https://github.com/ghostty-org/ghostty/blob/65901966/macos/Ghostty.sdef
 - cmux docs/API: https://cmux.com/docs, https://cmux.com/docs/api

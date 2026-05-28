@@ -1,66 +1,90 @@
 # Shuttle
 
-[![Join the chat at https://gitter.im/fitztrev/shuttle](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/fitztrev/shuttle?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Shuttle is now a Rust-native macOS menu-bar app for launching shortcuts from a `.shuttle.json` config.
 
-A simple shortcut menu for macOS
+It preserves the legacy Shuttle config contract while adding explicit launch backends for Terminal.app, iTerm, Ghostty, cmux, URL opening, and virtual/background `screen` execution.
 
-[http://fitztrev.github.io/shuttle/](http://fitztrev.github.io/shuttle/)
+## Current status
 
-![How Shuttle works](https://raw.githubusercontent.com/fitztrev/shuttle/gh-pages/images/how-shuttle-works.gif)
+The Rust core is ready for local testing:
 
-**Sidenote**: *Many people ask, so here's how I have [my terminal setup](https://github.com/fitztrev/shuttle/wiki/My-Terminal-Prompt).*
+- Config discovery and default config creation
+- Legacy JSON config loading
+- Alternate config host merge
+- SSH config import
+- Menu model sorting/separators
+- Launch normalization and backend selection
+- Terminal.app/iTerm AppleScript resource mapping
+- Ghostty and cmux launch builders
+- App bundle assembly
 
-## Installation
+The native AppKit status-item shell is still being completed, so expect rough edges during manual testing.
 
-1. Download [Shuttle](http://fitztrev.github.io/shuttle/)
-2. Copy to Applications
+## Build
 
-## Help
-See the [Wiki](https://github.com/fitztrev/shuttle/wiki) pages. 
+```sh
+./scripts/check-rust.sh
+./scripts/build-rust-app.sh
+```
 
-## Roadmap
+The app bundle is created at:
 
-* Cloud hosting integration
-  * AWS, Rackspace, Digital Ocean, etc
-  * Using their APIs, automatically add all of your machines to the menu
-* Preferences panel for easier configuration
-* Update notifications
-* Keyboard hotkeys
-  * Open menu
-  * Select host option within menu
+```text
+target/release/Shuttle.app
+```
 
-## Contributors
+## Test with an isolated config
 
-This project was created by [Trevor Fitzgerald](https://github.com/fitztrev). I owe many thanks to the following people who have helped make Shuttle even better.
+Avoid touching your real Shuttle config while testing:
 
-(In alphabetical order)
+```sh
+cp tests/.shuttle.json /tmp/shuttle-test.json
+printf '/tmp/shuttle-test.json\n' > ~/.shuttle.path
+./target/release/Shuttle.app/Contents/MacOS/shuttle-rs
+# Remove ~/.shuttle.path when done.
+```
 
-* [Alexis NIVON](https://github.com/anivon)
-* [Alex Carter](https://github.com/blazeworx)
-* [bihicheng](https://github.com/bihicheng)
-* [Dave Eddy](https://github.com/bahamas10)
-* [Dmitry Filimonov](https://github.com/petethepig)
-* [Frank Enderle](https://github.com/fenderle)
-* [Jack Weeden](https://github.com/jackbot)
-* [Justin Swanson](https://github.com/geeksunny)
-* [Kees Fransen](https://github.com/keesfransen)
-* Marco Aurélio
-* [Martin Grund](https://github.com/grundprinzip)
-* [Matt Turner](https://github.com/thshdw)
-* [Michael Davis](https://github.com/mpdavis)
-* [Morton Fox](https://github.com/mortonfox)
-* [Pluwen](https://github.com/pluwen)
-* Rebecca Dominguez
-* [Rui Rodrigues](https://github.com/rmrodrigues)
-* [Ryan Cohen](https://github.com/imryan)
-* [Stefan Jansen](https://github.com/steffex)
-* Thomas Rosenstein
-* [Thoro](https://github.com/Thoro)
-* [Tibor Bödecs](https://github.com/tib)
-* [welsonla](https://github.com/welsonla)
+## Config compatibility
 
-## Credits
+Existing `.shuttle.json` files should continue to load. Legacy keys remain supported:
 
-Shuttle was inspired by [SSHMenu](http://sshmenu.sourceforge.net/), the GNOME applet for Linux.
+- `terminal`
+- `iTerm_version`
+- `open_in`
+- `default_theme`
+- `editor`
+- `launch_at_login`
+- `show_ssh_config_hosts`
+- `ssh_config_ignore_hosts`
+- `ssh_config_ignore_keywords`
+- host `cmd`, `name`, `inTerminal`, `theme`, and `title`
 
-I also looked to projects such as [MLBMenu](https://github.com/markolson/MLB-Menu) and [QuickSmileText](https://github.com/scturtle/QuickSmileText) for direction on building a Cocoa app for the status bar.
+New optional keys:
+
+- `backend`: `terminal-app`, `iterm-stable`, `iterm-nightly`, `ghostty-open`, `ghostty-applescript`, `cmux-cli`, `cmux-socket`, `screen`
+- `strategy`: `default`, `workspace`, `socket`, `applescript`
+
+Per-host `backend` / `strategy` override top-level values.
+
+## Docs
+
+- `docs/rust-port-migration.md`
+- `docs/terminal-backends.md`
+- `docs/troubleshooting-rust-port.md`
+- `docs/packaging-rust-port.md`
+- `docs/development/rust-port.md`
+
+## Verification
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test
+python3 -m json.tool resources/shuttle.default.json >/dev/null
+```
+
+Or run all checks:
+
+```sh
+./scripts/check-rust.sh
+```

@@ -1,6 +1,6 @@
 # Rust Port Launch at Login
 
-The Objective-C app uses the existing `LaunchAtLoginController` login item integration. The Rust port keeps the `launch_at_login` config key in the typed model so existing configs continue to load.
+The Rust port keeps the `launch_at_login` config key in the typed model so existing configs continue to load.
 
 Implementation direction for the Rust app:
 
