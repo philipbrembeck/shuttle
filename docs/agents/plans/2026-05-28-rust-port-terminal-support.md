@@ -367,7 +367,7 @@ Finish the port as an installable app with clear compatibility and migration gui
 **Dependencies**: **Phase 5**, **Phase 6**
 
 **Tasks**:
-- [ ] Finalize app bundle resources: icon, default config, AppleScript resources if still bundled, localized user-visible strings where practical.
+- [x] Finalize app bundle resources: icon, default config, AppleScript resources if still bundled, localized user-visible strings where practical.
 - [x] Preserve or replace launch-at-login behavior in a Rust-compatible way appropriate for supported macOS versions.
 - [x] Add a migration guide explaining existing config compatibility and new backend/strategy keys.
 - [x] Add terminal support documentation for Terminal.app, iTerm, Ghostty, cmux, URL commands, and virtual/screen mode.

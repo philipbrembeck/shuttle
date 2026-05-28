@@ -12,6 +12,9 @@ mkdir -p "$MACOS" "$RESOURCES"
 cp resources/Shuttle-Info.plist "$CONTENTS/Info.plist"
 cp target/release/shuttle-rs "$MACOS/shuttle-rs"
 cp resources/shuttle.default.json "$RESOURCES/shuttle.default.json"
+if [ -d resources/apple-scpt ]; then
+  cp resources/apple-scpt/*.scpt "$RESOURCES/"
+fi
 if [ -f shuttle.icns ]; then
   cp shuttle.icns "$RESOURCES/shuttle.icns"
 fi
