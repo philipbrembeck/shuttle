@@ -1,3 +1,5 @@
+#![allow(deprecated, unexpected_cfgs, dead_code)]
+
 use crate::menu_model::MenuEntry;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,11 +39,84 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn install_status_menu(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
-    // The objc2 AppKit bridge will consume this spec when the callback holder is
-    // introduced. Keeping this conversion isolated lets the rest of the port test
-    // native menu shape without depending on an active NSApplication in unit tests.
-    build_spec(entries)
+pub fn install_status_menu(entries: &[MenuEntry]) -> cocoa::base::id {
+    use cocoa::appkit::{
+        NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
+    };
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::NSString;
+    use objc::{msg_send, sel, sel_impl};
+
+    unsafe {
+        let menu = build_ns_menu(entries);
+        menu.addItem_(NSMenuItem::separatorItem(nil));
+        let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+            NSString::alloc(nil).init_str("Quit Shuttle"),
+            sel!(terminate:),
+            NSString::alloc(nil).init_str("q"),
+        );
+        menu.addItem_(quit);
+
+        let status_bar = NSStatusBar::systemStatusBar(nil);
+        let item = status_bar.statusItemWithLength_(NSVariableStatusItemLength);
+        let button: id = item.button();
+        if button != nil {
+            let title = NSString::alloc(nil).init_str("🚀");
+            let _: () = msg_send![button, setTitle: title];
+        }
+        item.setMenu_(menu);
+        item
+    }
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn build_ns_menu(entries: &[MenuEntry]) -> cocoa::base::id {
+    use cocoa::appkit::{NSMenu, NSMenuItem};
+    use cocoa::base::nil;
+    use cocoa::foundation::NSAutoreleasePool;
+
+    let menu = NSMenu::new(nil).autorelease();
+    for entry in entries {
+        match entry {
+            MenuEntry::Menu {
+                title, children, ..
+            } => {
+                let item = menu_item(title, true);
+                let submenu = build_ns_menu(children);
+                item.setSubmenu_(submenu);
+                menu.addItem_(item);
+            }
+            MenuEntry::Command { title, .. } => {
+                let item = menu_item(title, false);
+                menu.addItem_(item);
+            }
+            MenuEntry::Disabled { title } => {
+                let item = menu_item(title, false);
+                menu.addItem_(item);
+            }
+            MenuEntry::Separator => menu.addItem_(NSMenuItem::separatorItem(nil)),
+        }
+    }
+    menu
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn menu_item(title: &str, enabled: bool) -> cocoa::base::id {
+    use cocoa::appkit::NSMenuItem;
+    use cocoa::base::{nil, NO, YES};
+    use cocoa::foundation::{NSAutoreleasePool, NSString};
+    use objc::{msg_send, sel, sel_impl};
+
+    let item = NSMenuItem::alloc(nil)
+        .initWithTitle_action_keyEquivalent_(
+            NSString::alloc(nil).init_str(title),
+            sel!(noop:),
+            NSString::alloc(nil).init_str(""),
+        )
+        .autorelease();
+    let enabled = if enabled { YES } else { NO };
+    let _: () = msg_send![item, setEnabled: enabled];
+    item
 }
 
 #[cfg(test)]

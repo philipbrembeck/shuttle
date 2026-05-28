@@ -1,9 +1,30 @@
+#![allow(deprecated, unexpected_cfgs)]
+
+use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicyAccessory};
+use cocoa::base::{id, nil};
+use cocoa::foundation::NSAutoreleasePool;
+use objc::{msg_send, sel, sel_impl};
+
 pub fn run() {
-    // Native AppKit status-item integration will be filled in as the menu model and
-    // callback bridge land. For now, bootstrap config loading so the Rust target is
-    // runnable during Phase 1 on macOS and surfaces parse/path errors clearly.
-    if let Err(error) = crate::bootstrap_config() {
-        let _menu = crate::menu_model::error_menu("Error parsing config");
-        eprintln!("Shuttle config error: {error}");
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let app = NSApp();
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory);
+
+        let menu_entries = match crate::build_menu_entries() {
+            Ok(entries) => entries,
+            Err(error) => {
+                eprintln!("Shuttle config error: {error}");
+                crate::menu_model::error_menu("Error parsing config")
+            }
+        };
+
+        let status_item = crate::macos::menu::install_status_menu(&menu_entries);
+        retain_forever(status_item);
+        app.run();
     }
+}
+
+unsafe fn retain_forever(object: id) {
+    let _: id = msg_send![object, retain];
 }
