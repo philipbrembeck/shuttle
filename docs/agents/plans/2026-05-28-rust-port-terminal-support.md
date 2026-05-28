@@ -287,14 +287,14 @@ Make terminal dispatch explicit and extensible while keeping legacy keys working
 - [x] Add optional per-host `backend` and `strategy` overrides.
 - [x] Define precedence rules: per-host backend/strategy, top-level backend/strategy, legacy `terminal`/`open_in`, then defaults.
 - [x] Add structured errors/warnings for unsupported backend and target combinations.
-- [ ] Update `resources/shuttle.default.json` comments/examples to show legacy keys plus optional backend keys.
-- [ ] Document backend selection, target mapping, and compatibility behavior in project docs or README.
+- [x] Update `resources/shuttle.default.json` comments/examples to show legacy keys plus optional backend keys.
+- [x] Document backend selection, target mapping, and compatibility behavior in project docs or README.
 
 **Automated Verification**:
 - [x] `cargo check` passes.
 - [x] Backend resolution tests cover legacy-only config, top-level backend, per-host backend override, invalid backend, and invalid strategy.
 - [x] Config compatibility tests verify old configs produce the same backend/target choices as Phase 2.
-- [ ] `python -m json.tool resources/shuttle.default.json` passes, or equivalent JSON validation if comments are not represented in strict JSON.
+- [x] `python -m json.tool resources/shuttle.default.json` passes, or equivalent JSON validation if comments are not represented in strict JSON.
 
 **Manual Verification**:
 - [ ] Configure one host with a per-host backend override and verify only that host uses the override.
