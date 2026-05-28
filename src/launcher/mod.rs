@@ -59,13 +59,15 @@ pub struct LaunchRequest {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum LaunchError {
-    #[error("'{0}' is not a valid value for inTerminal")]
+    #[error(
+        "'{0}' is not a valid value for inTerminal. Use 'new', 'tab', 'current', or 'virtual'."
+    )]
     Target(String),
-    #[error("'{0}' is not a valid value for iTerm_version")]
+    #[error("'{0}' is not a valid value for iTerm_version. Use 'stable' or 'nightly'.")]
     ITermVersion(String),
-    #[error("'{0}' is not a supported backend")]
+    #[error("'{0}' is not a supported backend. Use terminal-app, iterm-stable, iterm-nightly, ghostty-open, ghostty-applescript, cmux-cli, cmux-socket, or screen.")]
     Backend(String),
-    #[error("'{0}' is not a supported strategy")]
+    #[error("'{0}' is not a supported strategy. Use default, workspace, socket, or applescript.")]
     Strategy(String),
 }
 

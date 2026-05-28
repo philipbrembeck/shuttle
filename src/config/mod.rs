@@ -16,7 +16,7 @@ pub enum ConfigError {
     MissingHome,
     #[error("I/O error for {path}: {source}")]
     Io { path: PathBuf, source: io::Error },
-    #[error("invalid JSON in {path}: {source}")]
+    #[error("invalid JSON in {path}: {source}. Validate the file with `python3 -m json.tool {path}` and fix the syntax before reloading Shuttle.")]
     Json {
         path: PathBuf,
         source: serde_json::Error,
