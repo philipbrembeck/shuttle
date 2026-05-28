@@ -1,10 +1,14 @@
 #![allow(deprecated, unexpected_cfgs, dead_code)]
 
+use crate::config::model::Config;
+use crate::launcher::{Backend, ITermVersion, LaunchKind};
 use crate::menu_model::MenuEntry;
 use cocoa::appkit::{NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength};
 use cocoa::base::{id, nil, NO, YES};
 use cocoa::foundation::{NSAutoreleasePool, NSString};
 use objc::{class, msg_send, sel, sel_impl};
+
+// ── Public spec type (used in tests without AppKit) ──────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeMenuSpec {
@@ -22,7 +26,7 @@ pub enum NativeMenuSpec {
 pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
     entries
         .iter()
-        .map(|entry| match entry {
+        .map(|e| match e {
             MenuEntry::Menu {
                 title, children, ..
             } => NativeMenuSpec::Menu {
@@ -42,34 +46,28 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
         .collect()
 }
 
-#[cfg(target_os = "macos")]
-pub fn install_status_menu(entries: &[MenuEntry], delegate: id) -> id {
-    unsafe {
-        let menu = build_ns_menu(entries);
+// ── Native menu construction ──────────────────────────────────────────────────
 
-        // Separator before actions
+#[cfg(target_os = "macos")]
+pub fn install_status_menu(entries: &[MenuEntry], config: &Config, delegate: id) -> id {
+    unsafe {
+        let menu = build_ns_menu(entries, config);
+
         menu.addItem_(NSMenuItem::separatorItem(nil));
 
-        // Configure...
-        let configure = menu_item_with_action("Configure...", sel!(shuttleConfigure:));
-        configure.setTarget_(delegate);
-        menu.addItem_(configure);
+        for (label, action) in [
+            ("Configure...", sel!(shuttleConfigure:)),
+            ("Import...", sel!(shuttleImport:)),
+            ("Export...", sel!(shuttleExport:)),
+        ] {
+            let item = titled_action_item(label, action);
+            item.setTarget_(delegate);
+            menu.addItem_(item);
+        }
 
-        // Import...
-        let import = menu_item_with_action("Import...", sel!(shuttleImport:));
-        import.setTarget_(delegate);
-        menu.addItem_(import);
-
-        // Export...
-        let export = menu_item_with_action("Export...", sel!(shuttleExport:));
-        export.setTarget_(delegate);
-        menu.addItem_(export);
-
-        // About Shuttle
-        let about = menu_item_with_action("About Shuttle", sel!(orderFrontStandardAboutPanel:));
+        let about = titled_action_item("About Shuttle", sel!(orderFrontStandardAboutPanel:));
         menu.addItem_(about);
 
-        // Quit
         let quit = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
             NSString::alloc(nil).init_str("Quit"),
             sel!(terminate:),
@@ -77,19 +75,21 @@ pub fn install_status_menu(entries: &[MenuEntry], delegate: id) -> id {
         );
         menu.addItem_(quit);
 
-        // Status item
+        // Build status item
         let status_bar = NSStatusBar::systemStatusBar(nil);
         let item = status_bar.statusItemWithLength_(NSVariableStatusItemLength);
         let button: id = item.button();
         if button != nil {
-            // Use SF Symbol "paperplane.fill" (rocket-like, available since macOS 11)
-            let symbol_name = NSString::alloc(nil).init_str("paperplane.fill");
-            let image: id = msg_send![class!(NSImage), imageWithSystemSymbolName: symbol_name accessibilityDescription: nil];
+            let sym = NSString::alloc(nil).init_str("paperplane.fill");
+            let image: id = msg_send![
+                class!(NSImage),
+                imageWithSystemSymbolName: sym
+                accessibilityDescription: nil
+            ];
             if image != nil {
                 let _: () = msg_send![image, setTemplate: YES];
                 let _: () = msg_send![button, setImage: image];
             } else {
-                // Fallback for older macOS
                 let title = NSString::alloc(nil).init_str("🚀");
                 let _: () = msg_send![button, setTitle: title];
             }
@@ -99,45 +99,59 @@ pub fn install_status_menu(entries: &[MenuEntry], delegate: id) -> id {
     }
 }
 
-#[cfg(target_os = "macos")]
-unsafe fn menu_item_with_action(title: &str, action: objc::runtime::Sel) -> id {
-    NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
-        NSString::alloc(nil).init_str(title),
-        action,
-        NSString::alloc(nil).init_str(""),
-    )
-}
+// ── Recursive menu builder ────────────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
-unsafe fn build_ns_menu(entries: &[MenuEntry]) -> id {
+unsafe fn build_ns_menu(entries: &[MenuEntry], config: &Config) -> id {
     let menu = NSMenu::new(nil).autorelease();
     let _: () = msg_send![menu, setAutoenablesItems: NO];
+
     for entry in entries {
         match entry {
             MenuEntry::Menu {
                 title, children, ..
             } => {
-                let item = menu_item(title, true);
-                let submenu = build_ns_menu(children);
+                let item = static_item(title, true);
+                let submenu = build_ns_menu(children, config);
                 item.setSubmenu_(submenu);
                 menu.addItem_(item);
             }
-            MenuEntry::Command { title, .. } => {
-                let item = menu_item(title, true);
+            MenuEntry::Command { title, command, .. } => {
+                // Resolve what backend this command would use
+                let backend_str = resolve_backend_str(config, &command.cmd, command);
+                let item = command_item(title, &command.cmd, &backend_str);
                 menu.addItem_(item);
             }
             MenuEntry::Disabled { title } => {
-                let item = menu_item(title, false);
-                menu.addItem_(item);
+                menu.addItem_(static_item(title, false));
             }
-            MenuEntry::Separator => menu.addItem_(NSMenuItem::separatorItem(nil)),
+            MenuEntry::Separator => {
+                menu.addItem_(NSMenuItem::separatorItem(nil));
+            }
         }
     }
     menu
 }
 
+/// Build an NSMenuItem that fires ShuttleAction.launch: on click.
 #[cfg(target_os = "macos")]
-unsafe fn menu_item(title: &str, enabled: bool) -> id {
+unsafe fn command_item(title: &str, cmd: &str, backend: &str) -> id {
+    let action = crate::macos::action::create_action(cmd, backend);
+    let item = NSMenuItem::alloc(nil)
+        .initWithTitle_action_keyEquivalent_(
+            NSString::alloc(nil).init_str(title),
+            sel!(launch:),
+            NSString::alloc(nil).init_str(""),
+        )
+        .autorelease();
+    item.setTarget_(action);
+    let _: () = msg_send![item, setEnabled: YES];
+    item
+}
+
+/// Build a non-clickable (or action-less) NSMenuItem.
+#[cfg(target_os = "macos")]
+unsafe fn static_item(title: &str, enabled: bool) -> id {
     let item = NSMenuItem::alloc(nil)
         .initWithTitle_action_keyEquivalent_(
             NSString::alloc(nil).init_str(title),
@@ -149,6 +163,61 @@ unsafe fn menu_item(title: &str, enabled: bool) -> id {
     let _: () = msg_send![item, setEnabled: flag];
     item
 }
+
+#[cfg(target_os = "macos")]
+unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
+    NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
+        NSString::alloc(nil).init_str(title),
+        action,
+        NSString::alloc(nil).init_str(""),
+    )
+}
+
+// ── Backend resolution ────────────────────────────────────────────────────────
+
+/// Returns the executor backend string for a given command and config.
+fn resolve_backend_str(
+    config: &Config,
+    cmd: &str,
+    host: &crate::config::model::CommandHost,
+) -> String {
+    // URL commands are dispatched directly
+    if is_url(cmd) {
+        return format!("url:{cmd}");
+    }
+    match crate::launcher::normalize(config, host, &host.name) {
+        Ok(LaunchKind::Url(url)) => format!("url:{url}"),
+        Ok(LaunchKind::Terminal(req)) => backend_to_str(&req.backend),
+        Err(_) => "terminal-app".to_string(),
+    }
+}
+
+fn backend_to_str(backend: &Backend) -> String {
+    match backend {
+        Backend::TerminalApp => "terminal-app".to_string(),
+        Backend::ITerm {
+            version: ITermVersion::Stable,
+        } => "iterm-stable".to_string(),
+        Backend::ITerm {
+            version: ITermVersion::Nightly,
+        } => "iterm-nightly".to_string(),
+        Backend::GhosttyOpen => "ghostty-open".to_string(),
+        Backend::GhosttyAppleScript => "ghostty-applescript".to_string(),
+        Backend::CmuxCli => "cmux-cli".to_string(),
+        Backend::CmuxSocket => "cmux-socket".to_string(),
+        Backend::Screen => "screen".to_string(),
+    }
+}
+
+fn is_url(cmd: &str) -> bool {
+    let cmd = cmd.trim();
+    cmd.starts_with("http://")
+        || cmd.starts_with("https://")
+        || cmd.starts_with("ssh://")
+        || cmd.starts_with("file://")
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -191,6 +260,44 @@ mod tests {
                     enabled: true
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn url_cmds_resolve_to_url_backend() {
+        let config = Config::default();
+        let host = CommandHost {
+            cmd: "https://example.com".into(),
+            name: "Website".into(),
+            in_terminal: None,
+            theme: None,
+            title: None,
+            backend: None,
+            strategy: None,
+            extra: BTreeMap::new(),
+        };
+        assert!(resolve_backend_str(&config, &host.cmd, &host).starts_with("url:"));
+    }
+
+    #[test]
+    fn ghostty_terminal_key_resolves_to_ghostty_open() {
+        let config = Config {
+            terminal: Some("ghostty".into()),
+            ..Config::default()
+        };
+        let host = CommandHost {
+            cmd: "ssh prod".into(),
+            name: "Prod".into(),
+            in_terminal: None,
+            theme: None,
+            title: None,
+            backend: None,
+            strategy: None,
+            extra: BTreeMap::new(),
+        };
+        assert_eq!(
+            resolve_backend_str(&config, &host.cmd, &host),
+            "ghostty-open"
         );
     }
 }

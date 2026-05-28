@@ -13,11 +13,14 @@ fn main() {
         if let Err(error) = build_menu_entries() {
             let _menu = menu_model::error_menu("Error parsing config");
             eprintln!("Shuttle config error: {error}");
+        } else {
+            println!("Config loaded OK (macOS app not running on this platform)");
         }
     }
 }
 
-fn build_menu_entries() -> Result<Vec<menu_model::MenuEntry>, config::ConfigError> {
+pub fn build_menu_entries(
+) -> Result<(Vec<menu_model::MenuEntry>, config::model::Config), config::ConfigError> {
     let paths = config::discover_paths()?;
     config::ensure_default_config(&paths)?;
     let before = config::snapshot(&paths);
@@ -42,5 +45,5 @@ fn build_menu_entries() -> Result<Vec<menu_model::MenuEntry>, config::ConfigErro
     let menu = menu_model::with_separators(menu_model::build(&config.hosts));
     let after = config::snapshot(&paths);
     let _needs_reload = config::needs_reload(&before, &after);
-    Ok(menu)
+    Ok((menu, config))
 }
