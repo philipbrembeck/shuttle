@@ -51,6 +51,11 @@ Required repository workflow permissions:
 
 - `contents: write` for tags, releases, and release asset uploads.
 - `pull-requests: write` for Release Please release PRs.
+- Repository setting: **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** must be enabled for the default `GITHUB_TOKEN` to open Release Please PRs.
+
+Optional release automation secret:
+
+- `RELEASE_PLEASE_TOKEN`: fine-grained PAT or GitHub App token with repository contents and pull-request write access. Use this when the repository cannot enable GitHub Actions PR creation for the default `GITHUB_TOKEN`.
 
 Optional signing/notarization secrets:
 
