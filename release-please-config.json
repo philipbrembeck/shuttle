@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "package-name": "shuttle-rs",
+      "changelog-path": "CHANGELOG.md",
+      "include-component-in-tag": false,
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "resources/Shuttle-Info.plist",
+          "xpath": "/plist/dict/key[text()='CFBundleShortVersionString']/following-sibling::string[1]"
+        },
+        {
+          "type": "xml",
+          "path": "resources/Shuttle-Info.plist",
+          "xpath": "/plist/dict/key[text()='CFBundleVersion']/following-sibling::string[1]"
+        }
+      ]
+    }
+  }
+}
