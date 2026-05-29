@@ -1,0 +1,41 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate squash commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          conventional_commit_regex='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9._/-]+\))?!?: .{1,}$'
+
+          if [[ ! "$PR_TITLE" =~ $conventional_commit_regex ]]; then
+            cat >&2 <<'EOF'
+          PR title must follow Conventional Commits because squash merges use it as the default commit title.
+
+            <type>[optional scope][!]: <description>
+
+          Allowed types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
+          Examples:
+            feat: add SSH host import
+            fix(menu): preserve alternate config reload
+            docs!: document breaking config change
+          EOF
+            exit 1
+          fi

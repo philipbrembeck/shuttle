@@ -8,14 +8,19 @@ Run the local quality gate before committing Rust port changes:
 
 The script runs formatting, strict Clippy (`-D warnings`), tests, a build check, and JSON validation for the Rust default config.
 
-## Pre-commit hook
+## Git hooks
 
-Install the local hook by copying or symlinking `.husky/pre-commit` into `.git/hooks/pre-commit`:
+Install the local hooks by copying or symlinking the Husky-compatible scripts into `.git/hooks`:
 
 ```sh
 ln -sf ../../.husky/pre-commit .git/hooks/pre-commit
+ln -sf ../../.husky/commit-msg .git/hooks/commit-msg
 ```
 
-Update the hook by editing `.husky/pre-commit`. Bypass only for emergencies with `git commit --no-verify`, and run `./scripts/check-rust.sh` before pushing.
+The pre-commit hook runs `./scripts/check-rust.sh`. The commit-msg hook enforces Conventional Commits with these types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, and `test`.
+
+GitHub also enforces Conventional Commit PR titles in `.github/workflows/conventional-commits.yml`. This protects squash merges because GitHub uses the PR title as the default squash commit title.
+
+Update hooks by editing `.husky/*`. Bypass only for emergencies with `git commit --no-verify`, and run `./scripts/check-rust.sh` before pushing.
 
 Tests should live next to focused modules for unit-level compatibility checks. Use `tests/` for integration tests once process, socket, and macOS-bound launch seams exist.
