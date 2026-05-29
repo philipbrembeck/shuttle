@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build/package without publishing release assets"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Prepare release
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip release]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          skip-github-pull-request: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+
+  build:
+    name: Build release artifact
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: macos-latest
+    env:
+      CERTIFICATE_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_P12 }}
+      CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      CODESIGN_IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name || github.ref }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Refresh Cargo.lock
+        run: cargo check
+      - name: Verify, build, and package
+        run: |
+          ./scripts/check-rust.sh
+          ./scripts/build-rust-app.sh
+          ./scripts/package-release.sh
+      - name: Import signing certificate
+        if: ${{ env.CERTIFICATE_P12 != '' && env.CERTIFICATE_PASSWORD != '' }}
+        run: |
+          security create-keychain -p "$RUNNER_TEMP" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$RUNNER_TEMP" build.keychain
+          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$RUNNER_TEMP" build.keychain
+      - name: Sign app bundle
+        if: ${{ env.CODESIGN_IDENTITY != '' && env.CERTIFICATE_P12 != '' }}
+        run: |
+          if [ -d target/release/Shuttle.app/Contents/Frameworks/Sparkle.framework ]; then
+            codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" target/release/Shuttle.app/Contents/Frameworks/Sparkle.framework
+          fi
+          codesign --force --options runtime --timestamp --sign "$CODESIGN_IDENTITY" target/release/Shuttle.app
+          ./scripts/package-release.sh
+      - name: Notarize and staple
+        if: ${{ env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.CODESIGN_IDENTITY != '' }}
+        run: |
+          xcrun notarytool submit target/release/Shuttle.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple target/release/Shuttle.app
+          ./scripts/package-release.sh
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shuttle
+          path: target/release/Shuttle.zip
+      - name: Upload GitHub Release asset
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release upload "$TAG_NAME" target/release/Shuttle.zip --clobber

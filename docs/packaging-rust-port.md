@@ -13,6 +13,27 @@ The bundle is written to:
 target/release/Shuttle.app
 ```
 
+Create a release archive with:
+
+```sh
+./scripts/package-release.sh
+```
+
+The archive is written to:
+
+```text
+target/release/Shuttle.zip
+```
+
+`Cargo.toml` `package.version` is the canonical app version. Keep bundle metadata synchronized with:
+
+```sh
+python3 scripts/sync-version.py
+python3 scripts/sync-version.py --check
+```
+
+`./scripts/check-rust.sh` and `./scripts/build-rust-app.sh` both fail when `resources/Shuttle-Info.plist` does not match the Cargo version. The app bundle's `CFBundleShortVersionString` and `CFBundleVersion` must both equal `package.version`.
+
 The packaging script copies:
 
 - `resources/Shuttle-Info.plist` to `Contents/Info.plist`
@@ -20,4 +41,24 @@ The packaging script copies:
 - `resources/shuttle.default.json` to `Contents/Resources/shuttle.default.json`
 - `shuttle.icns` to `Contents/Resources/shuttle.icns` when present
 
-For release builds, codesign/notarization should be added once the Rust AppKit shell is complete.
+`package-release.sh` uses `ditto -c -k --sequesterRsrc --keepParent Shuttle.app` so bundle metadata, permissions, symlinks, and future embedded frameworks are preserved.
+
+## Automated GitHub releases
+
+CI runs `./scripts/check-rust.sh` on `macos-latest` for pull requests and pushes. The release workflow runs on pushes to `main` and uses Release Please to create release PRs, calculate Conventional Commits SemVer bumps, update `Cargo.toml`, `Cargo.lock`, `resources/Shuttle-Info.plist`, `CHANGELOG.md`, create `vX.Y.Z` tags, and create GitHub Releases.
+
+Required repository workflow permissions:
+
+- `contents: write` for tags, releases, and release asset uploads.
+- `pull-requests: write` for Release Please release PRs.
+
+Optional signing/notarization secrets:
+
+- `APPLE_DEVELOPER_ID_CERTIFICATE_P12`: base64-encoded Developer ID Application certificate in `.p12` format.
+- `APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD`: password for the `.p12` certificate.
+- `APPLE_DEVELOPER_ID_IDENTITY`: codesign identity name, for example `Developer ID Application: Example, Inc. (TEAMID)`.
+- `APPLE_ID`: Apple ID used with `notarytool`.
+- `APPLE_TEAM_ID`: Apple Developer Team ID.
+- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password for notarization.
+
+When signing secrets are absent, the workflow still publishes an unsigned archive. Production auto-update releases should be signed and notarized before being advertised to users.
