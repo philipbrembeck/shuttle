@@ -197,10 +197,11 @@ fn default_theme(config: &Config, backend: &Backend) -> String {
 }
 
 fn is_url(command: &str) -> bool {
-    command.starts_with("http://")
-        || command.starts_with("https://")
-        || command.starts_with("ssh://")
-        || command.starts_with("file://")
+    let lower = command.to_ascii_lowercase();
+    lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("ssh://")
+        || lower.starts_with("file://")
 }
 
 #[cfg(test)]
@@ -268,6 +269,11 @@ mod tests {
         assert_eq!(
             normalize(&Config::default(), &host, "Web").unwrap(),
             LaunchKind::Url("https://example.com".into())
+        );
+        host.cmd = "HTTPS://example.com".into();
+        assert_eq!(
+            normalize(&Config::default(), &host, "Web").unwrap(),
+            LaunchKind::Url("HTTPS://example.com".into())
         );
         host.in_terminal = Some("virtual".into());
         assert!(matches!(

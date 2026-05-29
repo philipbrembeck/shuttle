@@ -163,9 +163,15 @@ unsafe fn build_ns_menu(entries: &[MenuEntry], config: &Config) -> id {
             }
             MenuEntry::Command { title, command, .. } => {
                 // Resolve the full launch payload so target/title/theme survive to execution.
-                let launch_payload = resolve_launch_payload(config, command);
-                let item = command_item(title, &command.cmd, &launch_payload);
-                menu.addItem_(item);
+                match resolve_launch_payload(config, command) {
+                    Ok(launch_payload) => {
+                        let item = command_item(title, &command.cmd, &launch_payload);
+                        menu.addItem_(item);
+                    }
+                    Err(error) => {
+                        menu.addItem_(static_item(&format!("{title}: {error}"), false));
+                    }
+                }
             }
             MenuEntry::Disabled { title } => {
                 menu.addItem_(static_item(title, false));
@@ -221,25 +227,20 @@ unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
 // ── Backend resolution ────────────────────────────────────────────────────────
 
 /// Returns the executor backend string for a given command and config.
-fn resolve_launch_payload(config: &Config, host: &crate::config::model::CommandHost) -> String {
-    match crate::launcher::normalize(config, host, &host.name) {
-        Ok(LaunchKind::Url(url)) => format!("url:{url}"),
-        Ok(LaunchKind::Terminal(req)) => serde_json::json!({
+fn resolve_launch_payload(
+    config: &Config,
+    host: &crate::config::model::CommandHost,
+) -> Result<String, crate::launcher::LaunchError> {
+    match crate::launcher::normalize(config, host, &host.name)? {
+        LaunchKind::Url(url) => Ok(format!("url:{url}")),
+        LaunchKind::Terminal(req) => Ok(serde_json::json!({
             "kind": "terminal",
             "backend": backend_to_str(&req.backend),
             "target": target_to_str(&req.target),
             "title": req.title,
             "theme": req.theme_or_profile,
         })
-        .to_string(),
-        Err(_) => serde_json::json!({
-            "kind": "terminal",
-            "backend": "terminal-app",
-            "target": "tab",
-            "title": host.name,
-            "theme": "basic",
-        })
-        .to_string(),
+        .to_string()),
     }
 }
 
@@ -328,7 +329,9 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        assert!(resolve_launch_payload(&config, &host).starts_with("url:"));
+        assert!(resolve_launch_payload(&config, &host)
+            .unwrap()
+            .starts_with("url:"));
     }
 
     #[test]
@@ -347,7 +350,9 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        assert!(resolve_launch_payload(&config, &host).contains("\"backend\":\"ghostty-open\""));
+        assert!(resolve_launch_payload(&config, &host)
+            .unwrap()
+            .contains("\"backend\":\"ghostty-open\""));
     }
 
     #[test]
@@ -363,7 +368,7 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        let payload = resolve_launch_payload(&config, &host);
+        let payload = resolve_launch_payload(&config, &host).unwrap();
         assert!(!payload.starts_with("url:"));
         assert!(payload.contains("\"backend\":\"screen\""));
         assert!(payload.contains("\"target\":\"virtual\""));
@@ -386,10 +391,29 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        let payload = resolve_launch_payload(&config, &host);
+        let payload = resolve_launch_payload(&config, &host).unwrap();
         assert!(payload.contains("\"backend\":\"iterm-stable\""));
         assert!(payload.contains("\"target\":\"current\""));
         assert!(payload.contains("\"title\":\"Production\""));
         assert!(payload.contains("\"theme\":\"Homebrew\""));
+    }
+
+    #[test]
+    fn invalid_launch_config_returns_error() {
+        let config = Config {
+            backend: Some("nope".into()),
+            ..Config::default()
+        };
+        let host = CommandHost {
+            cmd: "ssh prod".into(),
+            name: "Prod".into(),
+            in_terminal: None,
+            theme: None,
+            title: None,
+            backend: None,
+            strategy: None,
+            extra: BTreeMap::new(),
+        };
+        assert!(resolve_launch_payload(&config, &host).is_err());
     }
 }

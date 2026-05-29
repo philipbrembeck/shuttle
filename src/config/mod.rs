@@ -164,10 +164,10 @@ pub fn snapshot(paths: &ConfigPaths) -> ReloadSnapshot {
 }
 
 pub fn needs_reload(old: &ReloadSnapshot, new: &ReloadSnapshot) -> bool {
-    new.main_config > old.main_config
-        || new.alt_config > old.alt_config
-        || new.ssh_system > old.ssh_system
-        || new.ssh_user > old.ssh_user
+    new.main_config != old.main_config
+        || new.alt_config != old.alt_config
+        || new.ssh_system != old.ssh_system
+        || new.ssh_user != old.ssh_user
 }
 
 fn read_path_file(path: &Path) -> Result<PathBuf, ConfigError> {
@@ -293,5 +293,26 @@ mod tests {
         let bad = temp.path().join("bad.json");
         fs::write(&bad, "{ nope").unwrap();
         assert!(matches!(load_config(&bad), Err(ConfigError::Json { .. })));
+    }
+
+    #[test]
+    fn reload_detects_any_snapshot_change() {
+        let old = ReloadSnapshot {
+            main_config: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(20)),
+            alt_config: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(10)),
+            ssh_system: None,
+            ssh_user: None,
+        };
+        let deleted = ReloadSnapshot {
+            main_config: None,
+            ..old.clone()
+        };
+        assert!(needs_reload(&old, &deleted));
+
+        let older = ReloadSnapshot {
+            alt_config: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(5)),
+            ..old.clone()
+        };
+        assert!(needs_reload(&old, &older));
     }
 }

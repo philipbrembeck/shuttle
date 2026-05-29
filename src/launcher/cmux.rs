@@ -55,7 +55,7 @@ pub fn cli_args(binary: PathBuf, request: &LaunchRequest) -> Vec<String> {
 
 pub fn socket_path() -> Result<PathBuf, CmuxError> {
     let path = env::var("CMUX_SOCKET_PATH").unwrap_or_else(|_| "/tmp/cmux.sock".into());
-    if path.is_empty() {
+    if path.trim().is_empty() {
         Err(CmuxError::EmptySocketPath)
     } else {
         Ok(PathBuf::from(path))
@@ -137,6 +137,13 @@ mod tests {
     #[test]
     fn builds_socket_launch_request() {
         assert!(socket_launch_request(1, &request(LaunchTarget::New)).contains("workspace.send"));
+    }
+
+    #[test]
+    fn rejects_whitespace_only_socket_path() {
+        std::env::set_var("CMUX_SOCKET_PATH", "   ");
+        assert_eq!(socket_path(), Err(CmuxError::EmptySocketPath));
+        std::env::remove_var("CMUX_SOCKET_PATH");
     }
 
     #[test]

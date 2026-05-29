@@ -148,15 +148,30 @@ fn parse_line(trimmed: &str) -> Option<(bool, &str, &str)> {
 fn expand_include(base_dir: &Path, value: &str) -> Vec<PathBuf> {
     value
         .split_whitespace()
-        .map(|path| {
+        .flat_map(|path| {
             let path = expand_tilde(path);
-            if path.is_absolute() {
+            let path = if path.is_absolute() {
                 path
             } else {
                 base_dir.join(path)
-            }
+            };
+            expand_glob(path)
         })
         .collect()
+}
+
+fn expand_glob(path: PathBuf) -> Vec<PathBuf> {
+    let pattern = path.to_string_lossy();
+    if !pattern.contains(['*', '?', '[']) {
+        return vec![path];
+    }
+
+    let Ok(paths) = glob::glob(&pattern) else {
+        return vec![path];
+    };
+    let mut paths: Vec<PathBuf> = paths.filter_map(Result::ok).collect();
+    paths.sort();
+    paths
 }
 
 fn expand_tilde(path: &str) -> PathBuf {
@@ -202,5 +217,18 @@ mod tests {
         )]);
         merge_hosts(&mut root, &hosts, &[], &[]);
         assert!(matches!(&root[0], HostEntry::Menu(map) if map.contains_key("Servers")));
+    }
+
+    #[test]
+    fn expands_include_globs_in_lexical_order() {
+        let temp = tempfile::tempdir().unwrap();
+        let include_dir = temp.path().join("conf.d");
+        fs::create_dir_all(&include_dir).unwrap();
+        fs::write(include_dir.join("b.conf"), "Host beta\n").unwrap();
+        fs::write(include_dir.join("a.conf"), "Host alpha\n").unwrap();
+
+        let parsed = parse_str("Include conf.d/*.conf\n", temp.path());
+        let aliases: Vec<_> = parsed.keys().cloned().collect();
+        assert_eq!(aliases, ["alpha", "beta"]);
     }
 }
