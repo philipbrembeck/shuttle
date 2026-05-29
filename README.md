@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/philipbrembeck/shuttle/releases/latest"><strong>Download latest release</strong></a> &middot; <a href="#install">Installation instructions</a> &middot; <a href="#config-basics">Config documentation</a>
+  <a href="https://github.com/philipbrembeck/shuttle/releases/latest"><strong>Download latest release</strong></a>  &middot; <a href="https://philipbrembeck.github.io/shuttle/">Website</a> &middot; <a href="#install">Installation instructions</a> &middot; <a href="#config-basics">Config documentation</a>
 </p>
 
 ---
