@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+python3 scripts/sync-version.py --check
 cargo build --release
 APP_DIR="target/release/Shuttle.app"
 CONTENTS="$APP_DIR/Contents"
