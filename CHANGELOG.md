@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/philipbrembeck/shuttle/compare/v0.5.0...v0.5.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **#14:** macOS launch config handling ([176fa6d](https://github.com/philipbrembeck/shuttle/commit/176fa6d773c03f67a3ab57625f4c06af0bed99fd))
+* **#22:** confirmed menu and launcher bugs ([#22](https://github.com/philipbrembeck/shuttle/issues/22)) ([2be19c3](https://github.com/philipbrembeck/shuttle/commit/2be19c33a878ab73ca47ab7898c2cfbc4080f288))
+
 ## [0.5.0](https://github.com/philipbrembeck/shuttle/compare/v0.4.0...v0.5.0) (2026-05-29)
 
 
