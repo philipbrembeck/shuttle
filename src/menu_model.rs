@@ -77,23 +77,25 @@ pub fn display_name(name: &str) -> DisplayName {
 }
 
 fn strip_sort_marker(name: &str) -> String {
-    let bytes = name.as_bytes();
     let mut out = String::with_capacity(name.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if index + 5 <= bytes.len()
-            && bytes[index] == b'['
-            && bytes[index + 4] == b']'
-            && bytes[index + 1..index + 4]
-                .iter()
-                .all(u8::is_ascii_lowercase)
-        {
-            index += 5;
-        } else {
-            out.push(bytes[index] as char);
-            index += 1;
+    let mut chars = name.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '[' {
+            let marker: Vec<char> = chars.clone().take(4).collect();
+            if marker.len() == 4
+                && marker[3] == ']'
+                && marker[..3].iter().all(|ch| ch.is_ascii_lowercase())
+            {
+                for _ in 0..4 {
+                    chars.next();
+                }
+                continue;
+            }
         }
+        out.push(ch);
     }
+
     out
 }
 
@@ -155,6 +157,12 @@ mod tests {
                 separator_after: true
             }
         );
+    }
+
+    #[test]
+    fn strip_sort_marker_preserves_utf8() {
+        assert_eq!(display_name("[aaa]Café").title, "Café");
+        assert_eq!(display_name("[bbb]日本語").title, "日本語");
     }
 
     #[test]
