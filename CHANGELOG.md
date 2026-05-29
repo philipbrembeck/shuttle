@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/philipbrembeck/shuttle/compare/v0.3.1...v0.4.0) (2026-05-29)
+
+
+### Features
+
+* automate releases and packaging ([c9acc06](https://github.com/philipbrembeck/shuttle/commit/c9acc060d2bf14c0306f09f04d67ef78b3cb0d23))
+* port Shuttle to Rust ([b1d67c1](https://github.com/philipbrembeck/shuttle/commit/b1d67c144af355db6971a2c5397589cc451f4837))
+
 ## [0.3.1](https://github.com/philipbrembeck/shuttle/compare/v0.3.0...v0.3.1) (2026-05-29)
 
 
