@@ -182,7 +182,7 @@ Add hosted CI and an automated main-branch release workflow.
 
 **Tasks**:
 
-- [x] Add `.github/workflows/ci.yml` for pull requests and pushes that runs `./scripts/check-rust.sh` on a macOS ARM runner.
+- [x] Add `.github/workflows/ci.yml` for pull requests and pushes that runs `./scripts/check-rust.sh` on a hosted macOS runner.
 - [x] Add `.github/workflows/release.yml` triggered by pushes to `main` with concurrency protection for releases.
 - [x] Configure `googleapis/release-please-action` for Conventional Commits SemVer calculation, release PR/version bump management, changelog generation, tags, and GitHub Release creation.
 - [x] Configure Release Please manifest settings so it updates `Cargo.toml`, runs the version sync script for `resources/Shuttle-Info.plist`, and lets Cargo refresh `Cargo.lock` rather than hand-editing it.
@@ -196,14 +196,14 @@ Add hosted CI and an automated main-branch release workflow.
 
 - [x] `actionlint` or equivalent workflow validation passes for `.github/workflows/*.yml`.
 - [ ] Release workflow dry-run mode can compute the next version without pushing tags.
-- [ ] CI workflow passes on a branch push or pull request.
+- [-] CI workflow passes on a branch push or pull request.
 - [x] `./scripts/check-rust.sh` passes locally after workflow files and scripts are added.
 
 **Manual Verification**:
 
 - [ ] Test release workflow with a temporary branch or `workflow_dispatch` dry run.
   1. Trigger the workflow without publishing a real release.
-  2. Confirm it selects a macOS ARM runner.
+  2. Confirm it selects a hosted macOS runner.
   3. Confirm computed version, build artifact name, and release notes look correct.
 - [ ] After merging to `main`, confirm a real release creates a `vX.Y.Z` tag, GitHub Release, and downloadable Shuttle archive.
 

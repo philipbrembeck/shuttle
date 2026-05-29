@@ -45,7 +45,7 @@ The packaging script copies:
 
 ## Automated GitHub releases
 
-CI runs `./scripts/check-rust.sh` on `macos-14-arm64` for pull requests and pushes. The release workflow runs on pushes to `main` and uses Release Please to create release PRs, calculate Conventional Commits SemVer bumps, update `Cargo.toml`, `Cargo.lock`, `resources/Shuttle-Info.plist`, `CHANGELOG.md`, create `vX.Y.Z` tags, and create GitHub Releases.
+CI runs `./scripts/check-rust.sh` on `macos-latest` for pull requests and pushes. The release workflow runs on pushes to `main` and uses Release Please to create release PRs, calculate Conventional Commits SemVer bumps, update `Cargo.toml`, `Cargo.lock`, `resources/Shuttle-Info.plist`, `CHANGELOG.md`, create `vX.Y.Z` tags, and create GitHub Releases.
 
 Required repository workflow permissions:
 
