@@ -1,110 +1,67 @@
-# AGENTS.md
+# AGENTS.md — Shuttle
 
-Guidance for AI coding agents working in this repository.
+Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY.
 
-## Project overview
+## Project map
 
-Shuttle is a Rust-native macOS menu-bar app. It builds a status-bar menu from a user JSON config and SSH config entries, then launches commands through explicit backends for Terminal.app, iTerm, Ghostty, cmux, URLs, or virtual/background `screen` execution.
+| Area | Path |
+| --- | --- |
+| App bootstrap | `src/main.rs` |
+| Config + SSH import | `src/config/` |
+| Menu model | `src/menu_model.rs` |
+| Launch backends | `src/launcher/` |
+| macOS integration | `src/macos/` |
+| Bundled config/resources | `resources/` |
+| Quality/build scripts | `scripts/check-rust.sh`, `scripts/build-rust-app.sh` |
 
-The old Objective-C/Xcode app has been removed. Treat the Rust implementation as the source of truth.
+## Need to know
 
-Primary code paths:
+- The Rust app is source of truth; removed Objective-C/Xcode code MUST NOT guide changes.
+- Shuttle builds menus from user JSON plus SSH config, then launches via Terminal.app, iTerm, Ghostty, cmux, URLs, or virtual/background `screen`.
+- Default config is `~/.shuttle.json`; `~/.shuttle.path` MAY override it.
+- Alternate config uses `~/.shuttle-alt.path` or `~/.shuttle-alt.json` when present.
+- Menus reload when main config, alternate config, `/etc/ssh/ssh_config`, or `~/.ssh/config` mtimes change.
+- SSH import supports `# shuttle.<key> <value>` metadata and legacy `Include` behavior.
+- Existing config keys (`terminal`, `iTerm_version`, `open_in`, `default_theme`, `inTerminal`, `theme`, `title`) MUST keep working.
 
-- `Cargo.toml` — Rust package definition and dependency allowlist.
-- `src/main.rs` — app entry point and bootstrap wiring.
-- `src/config/` — config path discovery, JSON model/loading, default config copy, reload timestamp helpers, SSH config import.
-- `src/menu_model.rs` — normalized menu tree, sorting, sort-marker stripping, separators, disabled error menu items.
-- `src/launcher/` — launch request normalization and backend-specific builders for Terminal.app, iTerm, Ghostty, cmux, URL, and virtual screen execution.
-- `src/macos/` — macOS shell, menu specs, launch-at-login integration stubs, and AppKit-facing code.
-- `resources/Shuttle-Info.plist` — app bundle metadata with `LSUIElement` and Automation usage text.
-- `resources/shuttle.default.json` — bundled first-run default config.
-- `resources/apple-scpt/*.scpt` — bundled AppleScript resources for Terminal.app/iTerm/screen compatibility.
-- `scripts/check-rust.sh` — local quality gate.
-- `scripts/build-rust-app.sh` — assembles `target/release/Shuttle.app`.
-- `tests/.shuttle.json` — sample config for manual testing.
+## Workflow rules
 
-## Build and verification
+- You MUST work on a new branch; do not change `main` directly.
+- You MUST regularly update your branch from `main` during longer work.
+- You MUST keep commits free of build artifacts, personal config, editor state, and machine-specific files.
+- You MUST document every architecture decision in `docs/ADR/`; create the directory if missing.
+- You MUST keep user-facing, developer, and architecture docs up to date with behavior changes.
+- You MUST explicitly document exceptions to these rules in the relevant PR, commit, or ADR.
 
-Run the Rust quality gate before finishing changes:
+## Test instructions
 
-```sh
-./scripts/check-rust.sh
-```
+- Before finishing code changes, you MUST run `./scripts/check-rust.sh`.
+- `./scripts/check-rust.sh` MUST pass; it runs format check, Clippy with `-D warnings`, tests, `cargo check`, and default JSON validation.
+- If you change behavior, you MUST add or update tests in the same change.
+- If you change config, menu, SSH import, launcher, or compatibility behavior, you MUST cover it with unit tests.
+- If you edit `resources/shuttle.default.json`, you MUST run `python3 -m json.tool resources/shuttle.default.json >/dev/null`.
+- If you edit `tests/.shuttle.json`, you MUST run `python3 -m json.tool tests/.shuttle.json >/dev/null`.
+- If you build the app bundle, use `./scripts/build-rust-app.sh`; output belongs under `target/release/Shuttle.app`.
 
-This runs:
+## Coding rules
 
-```sh
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test
-cargo check
-python3 -m json.tool resources/shuttle.default.json >/dev/null
-```
+- You MUST keep modules small, typed, and aligned with existing domain concepts (`Config`, host entries, menu entries, launch requests, backends).
+- You MUST NOT add dead code.
+- You MUST NOT add unused `#![allow(dead_code)]`, `#![allow(unused)]`, or equivalent broad suppressions.
+- You SHOULD prefer explicit error types with actionable messages.
+- You SHOULD prefer argument vectors and structured data over shell-string construction.
+- You MUST keep JSON examples strict JSON.
+- You MUST preserve macOS compatibility where practical; newer APIs MUST be availability-guarded.
+- You MUST NOT introduce webview, Electron, or Tauri-style runtimes.
 
-Build the app bundle:
+## Load when needed
 
-```sh
-./scripts/build-rust-app.sh
-```
+You MUST load these docs when the "When?" condition applies.
 
-The bundle is created at:
-
-```text
-target/release/Shuttle.app
-```
-
-Validate sample/default JSON when editing configs:
-
-```sh
-python3 -m json.tool resources/shuttle.default.json >/dev/null
-python3 -m json.tool tests/.shuttle.json >/dev/null
-```
-
-## Manual testing
-
-Use an isolated config rather than changing a real user config:
-
-```sh
-cp tests/.shuttle.json /tmp/shuttle-test.json
-printf '/tmp/shuttle-test.json\n' > ~/.shuttle.path
-./target/release/Shuttle.app/Contents/MacOS/shuttle-rs
-# Remove ~/.shuttle.path after testing to restore default behavior.
-```
-
-If testing alternate-config behavior, use `~/.shuttle-alt.path` or `~/.shuttle-alt.json` similarly, and clean them up afterward.
-
-## Runtime behavior to preserve
-
-- Default config path is `~/.shuttle.json`; `~/.shuttle.path` can override it.
-- Alternate config can be enabled by `~/.shuttle-alt.path` or default `~/.shuttle-alt.json` if present.
-- On first run, `resources/shuttle.default.json` is copied to the default config path if missing and no main override is present.
-- The menu should reload when the main config, alternate config, `/etc/ssh/ssh_config`, or `~/.ssh/config` modification times change.
-- SSH config parsing supports comments of the form `# shuttle.<key> <value>` for per-host metadata and supports legacy `Include` handling.
-- `hosts` entries can be nested menus, commands, separators via `[---]` in names, and sorted through `[aaa]`-style prefixes.
-- Existing configs should keep working with `terminal`, `iTerm_version`, `open_in`, `default_theme`, and per-host `inTerminal`, `theme`, and `title`.
-- New `backend` and `strategy` keys are optional. Per-host values override top-level values.
-
-## Coding conventions
-
-- Keep modules small and typed around legacy concepts (`Config`, host entries, menu entries, launch requests, backends).
-- Prefer explicit error types with actionable messages.
-- Add unit tests for compatibility behavior whenever changing config, menu, SSH, or launcher code.
-- Avoid shell-string construction. Prefer argument vectors for process launches and structured JSON for socket calls.
-- Keep the native macOS app lightweight. Do not introduce webview/Electron/Tauri-style runtimes.
-- Preserve old macOS compatibility where practical; guard newer AppKit/ServiceManagement APIs with availability checks when implemented.
-- Keep JSON examples valid strict JSON.
-
-## Repository hygiene
-
-- Build artifacts belong under `target/` and are ignored.
-- Do not commit personal config files (`~/.shuttle.json`, `.shuttle.path`, etc.).
-- Do not add machine-specific editor or IDE state.
-- Be careful with binary resources (`.icns`, `.scpt`); update them only when required.
-
-## Useful docs
-
-- `docs/development/rust-port.md` — Rust development workflow and hooks.
-- `docs/rust-port-migration.md` — compatibility and migration guidance.
-- `docs/terminal-backends.md` — backend and strategy configuration.
-- `docs/troubleshooting-rust-port.md` — common runtime issues.
-- `docs/packaging-rust-port.md` — app bundle packaging.
+| What? | Where? | When? |
+| --- | --- | --- |
+| Development workflow | `docs/development/rust-port.md` | When changing build, checks, hooks, or local workflow. |
+| Migration/compatibility | `docs/rust-port-migration.md` | When changing legacy config behavior or compatibility guarantees. |
+| Terminal backends | `docs/terminal-backends.md` | When changing launch backends, strategies, or backend config. |
+| Packaging | `docs/packaging-rust-port.md` | When changing app bundle, release, signing, or packaging behavior. |
+| Troubleshooting | `docs/troubleshooting-rust-port.md` | When diagnosing runtime failures or documenting known issues. |
