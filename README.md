@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/shuttle.iconset/icon_128x128.png" alt="Shuttle app icon" width="128" height="128">
+  <img src="resources/shuttle.iconset/icon_128x128@2x.png" alt="Shuttle app icon" width="128" height="128">
 </p>
 
 <h1 align="center">Shuttle</h1>
@@ -8,14 +8,14 @@
   A Rust rewrite of the classic macOS Shuttle menu-bar app for launching SSH sessions, terminal commands, and URLs from a simple JSON config.
 </p>
 
-> [!NOTE]
-> This repository is experimental software provided as-is. Use it at your own risk; we assume no liability for issues, data loss, security problems, or operational impact.
-
 <p align="center">
-  <a href="https://github.com/philipbrembeck/shuttle/releases/latest"><strong>Download latest release</strong></a>
+  <a href="https://github.com/philipbrembeck/shuttle/releases/latest"><strong>Download latest release</strong></a> &middot; <a href="#install">Installation instructions</a> &middot; <a href="#config-basics">Config documentation</a>
 </p>
 
 ---
+
+> [!NOTE]
+> This repository is experimental software provided as-is, ported to Rust exclusively using AI Agents. Use it at your own risk; we assume no liability for issues, data loss, security problems, or operational impact.
 
 ## What is Shuttle?
 
@@ -30,6 +30,10 @@ Use it for:
 - Commands that should open in Terminal.app, iTerm, Ghostty, cmux, or background `screen`
 - URLs such as dashboards, SSH URLs, or local files
 - Importing hosts from `~/.ssh/config`
+
+<p align="center">
+    <img src="docs/assets/demo.png" alt="Shuttle demo">
+</p>
 
 ## Install
 
@@ -48,7 +52,7 @@ xattr -dr com.apple.quarantine /Applications/Shuttle.app
 open /Applications/Shuttle.app
 ```
 
-Future notarized releases should not need this workaround.
+Future notarized releases should not need this workaround, but notarizationm is not on the roadmap atm.
 
 ### Build from source
 
@@ -75,7 +79,7 @@ Open the menu-bar icon and choose **Configuration** to edit, import, or export y
 
 ```json
 {
-  "terminal": "Terminal.app",
+  "terminal": "Ghostty",
   "open_in": "tab",
   "show_ssh_config_hosts": true,
   "hosts": [
@@ -97,27 +101,27 @@ Save the file, then reopen the Shuttle menu. The app reloads when the config cha
 
 ### Global settings
 
-| Key | Description | Values |
-| --- | --- | --- |
-| `editor` | App used by the Configuration menu | `"default"`, `"nano"`, `"vi"`, etc. |
-| `launch_at_login` | Start Shuttle on login | `true` / `false` |
-| `terminal` | Preferred terminal | `"Terminal.app"`, `"iTerm"`, `"Ghostty"`, `"cmux"` |
-| `open_in` | Default launch mode | `"new"`, `"tab"`, `"current"`, `"virtual"` |
-| `show_ssh_config_hosts` | Import SSH config hosts | `true` / `false` |
-| `backend` | Explicit backend override | See [Backends](#backends) |
-| `strategy` | Backend strategy hint | See [Strategies](#strategies) |
+| Key                     | Description                        | Values                                             |
+| ----------------------- | ---------------------------------- | -------------------------------------------------- |
+| `editor`                | App used by the Configuration menu | `"default"`, `"nano"`, `"vi"`, etc.                |
+| `launch_at_login`       | Start Shuttle on login             | `true` / `false`                                   |
+| `terminal`              | Preferred terminal                 | `"Terminal.app"`, `"iTerm"`, `"Ghostty"`, `"cmux"` |
+| `open_in`               | Default launch mode                | `"new"`, `"tab"`, `"current"`, `"virtual"`         |
+| `show_ssh_config_hosts` | Import SSH config hosts            | `true` / `false`                                   |
+| `backend`               | Explicit backend override          | See [Backends](#backends)                          |
+| `strategy`              | Backend strategy hint              | See [Strategies](#strategies)                      |
 
 ### Host settings
 
-| Key | Description |
-| --- | --- |
-| `cmd` | Command, URL, or SSH command to launch |
-| `name` | Menu label |
+| Key          | Description                                               |
+| ------------ | --------------------------------------------------------- |
+| `cmd`        | Command, URL, or SSH command to launch                    |
+| `name`       | Menu label                                                |
 | `inTerminal` | Per-host mode: `"new"`, `"tab"`, `"current"`, `"virtual"` |
-| `theme` | Terminal profile/theme |
-| `title` | Terminal window/tab title |
-| `backend` | Per-host backend override |
-| `strategy` | Per-host strategy override |
+| `theme`      | Terminal profile/theme                                    |
+| `title`      | Terminal window/tab title                                 |
+| `backend`    | Per-host backend override                                 |
+| `strategy`   | Per-host strategy override                                |
 
 ### Nested menus
 
@@ -192,24 +196,24 @@ The easiest way to choose a backend is the `terminal` key:
 
 For precise control, use `backend` globally or per host.
 
-| Backend | Config value | Notes |
-| --- | --- | --- |
-| Terminal.app | `terminal-app` | Supports new windows, tabs, current window, and virtual mode via AppleScript |
-| iTerm | `iterm-stable`, `iterm-nightly` | Supports stable/nightly iTerm variants via AppleScript |
-| Ghostty open | `ghostty-open` | Opens new Ghostty windows without Automation permission |
-| Ghostty AppleScript | `ghostty-applescript` | Supports tabs/current windows; requires Ghostty 1.3+ and Automation permission |
-| cmux CLI | `cmux-cli` | Sends commands to cmux workspaces/focused surfaces |
-| cmux socket | `cmux-socket` | Uses cmux Unix socket JSON API |
-| screen | `screen` | Runs commands detached in the background |
+| Backend             | Config value                    | Notes                                                                          |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------ |
+| Terminal.app        | `terminal-app`                  | Supports new windows, tabs, current window, and virtual mode via AppleScript   |
+| iTerm               | `iterm-stable`, `iterm-nightly` | Supports stable/nightly iTerm variants via AppleScript                         |
+| Ghostty open        | `ghostty-open`                  | Opens new Ghostty windows without Automation permission                        |
+| Ghostty AppleScript | `ghostty-applescript`           | Supports tabs/current windows; requires Ghostty 1.3+ and Automation permission |
+| cmux CLI            | `cmux-cli`                      | Sends commands to cmux workspaces/focused surfaces                             |
+| cmux socket         | `cmux-socket`                   | Uses cmux Unix socket JSON API                                                 |
+| screen              | `screen`                        | Runs commands detached in the background                                       |
 
 ### Strategies
 
-| Strategy | Description |
-| --- | --- |
-| `default` | Backend-specific default |
-| `workspace` | Target a named workspace, mainly for cmux |
-| `socket` | Use socket API, mainly for cmux |
-| `applescript` | Use AppleScript automation |
+| Strategy      | Description                               |
+| ------------- | ----------------------------------------- |
+| `default`     | Backend-specific default                  |
+| `workspace`   | Target a named workspace, mainly for cmux |
+| `socket`      | Use socket API, mainly for cmux           |
+| `applescript` | Use AppleScript automation                |
 
 Backend precedence:
 
