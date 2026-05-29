@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/philipbrembeck/shuttle/compare/v0.4.0...v0.5.0) (2026-05-29)
+
+
+### Features
+
+* add prompted update installer ([cb2ab29](https://github.com/philipbrembeck/shuttle/commit/cb2ab29f38e081e850829e4d4afe64e34c1d43d4))
+
 ## [0.4.0](https://github.com/philipbrembeck/shuttle/compare/v0.3.1...v0.4.0) (2026-05-29)
 
 
