@@ -1,0 +1,8 @@
+.DS_Store
+
+# Rust
+target/
+
+# Local editor/OS state
+*.swp
+*.swo
