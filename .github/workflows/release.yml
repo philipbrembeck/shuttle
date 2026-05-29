@@ -64,11 +64,19 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Refresh Cargo.lock
         run: cargo check
-      - name: Verify, build, and package
+      - name: Verify and build
         run: |
           ./scripts/check-rust.sh
           ./scripts/build-rust-app.sh
-          ./scripts/package-release.sh
+      - name: Ad-hoc sign unsigned build
+        if: ${{ env.CERTIFICATE_P12 == '' || env.CODESIGN_IDENTITY == '' }}
+        run: |
+          if [ -d target/release/Shuttle.app/Contents/Frameworks/Sparkle.framework ]; then
+            codesign --force --deep --sign - target/release/Shuttle.app/Contents/Frameworks/Sparkle.framework
+          fi
+          codesign --force --deep --sign - target/release/Shuttle.app
+      - name: Package app
+        run: ./scripts/package-release.sh
       - name: Import signing certificate
         if: ${{ env.CERTIFICATE_P12 != '' && env.CERTIFICATE_PASSWORD != '' }}
         run: |

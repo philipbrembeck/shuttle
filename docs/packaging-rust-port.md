@@ -66,4 +66,4 @@ Optional signing/notarization secrets:
 - `APPLE_TEAM_ID`: Apple Developer Team ID.
 - `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password for notarization.
 
-When signing secrets are absent, the workflow still publishes an unsigned archive. Production auto-update releases should be signed and notarized before being advertised to users.
+When Developer ID signing secrets are absent, the workflow ad-hoc signs the app before packaging. This is useful for preserving bundle integrity in experimental archives, but it does not satisfy Gatekeeper for downloaded production releases. Users may still need to remove quarantine manually with `xattr -dr com.apple.quarantine /Applications/Shuttle.app`, and production auto-update releases should be Developer ID signed and notarized before being advertised to users.
