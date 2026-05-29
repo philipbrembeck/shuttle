@@ -5,8 +5,11 @@
 <h1 align="center">Shuttle</h1>
 
 <p align="center">
-  A native macOS menu-bar app for launching SSH sessions, terminal commands, and URLs from a simple JSON config.
+  A Rust rewrite of the classic macOS Shuttle menu-bar app for launching SSH sessions, terminal commands, and URLs from a simple JSON config.
 </p>
+
+> [!NOTE]
+> This repository is experimental software provided as-is. Use it at your own risk; we assume no liability for issues, data loss, security problems, or operational impact.
 
 <p align="center">
   <a href="https://github.com/philipbrembeck/shuttle/releases/latest"><strong>Download latest release</strong></a>
@@ -17,6 +20,8 @@
 ## What is Shuttle?
 
 Shuttle lives in your macOS menu bar. Click the icon, choose a host or command, and Shuttle opens it in your preferred terminal.
+
+This project is a fork and Rust rewrite of the original, now-unmaintained [Shuttle](https://github.com/fitztrev/shuttle) project.
 
 Use it for:
 
