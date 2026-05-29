@@ -71,14 +71,54 @@ extern "C" fn check_reload(_this: &Object, _sel: Sel, _timer: id) {
 // ── Menu actions ──────────────────────────────────────────────────────────────
 
 extern "C" fn shuttle_configure(_this: &Object, _sel: Sel, _sender: id) {
-    unsafe {
-        let config_path = crate::config::discover_paths()
-            .map(|p| p.main.to_string_lossy().to_string())
-            .unwrap_or_else(|_| "~/.config/shuttle/config.json".to_string());
-        let ns_path = NSString::alloc(nil).init_str(&config_path);
-        let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
-        let _: () = msg_send![workspace, openFile: ns_path];
+    let paths = crate::config::discover_paths();
+    let config_path = paths
+        .as_ref()
+        .map(|p| p.main.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "~/.config/shuttle/config.json".to_string());
+    let editor = paths
+        .ok()
+        .and_then(|paths| crate::config::load_config(&paths.main).ok())
+        .and_then(|config| config.editor)
+        .unwrap_or_else(|| "default".to_string());
+    open_config_with_editor(&config_path, &editor);
+}
+
+fn open_config_with_editor(config_path: &str, editor: &str) {
+    let editor = editor.trim();
+    if editor.is_empty() || editor.eq_ignore_ascii_case("default") {
+        unsafe {
+            let ns_path = NSString::alloc(nil).init_str(config_path);
+            let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+            let _: () = msg_send![workspace, openFile: ns_path];
+        }
+        return;
     }
+
+    if matches!(editor, "nano" | "vi" | "vim" | "nvim" | "emacs") {
+        let command = format!("{} {}", shell_quote(editor), shell_quote(config_path));
+        let script = format!(
+            "tell application \"Terminal\"\n    activate\n    do script {}\nend tell",
+            applescript_string(&command)
+        );
+        let _ = std::process::Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(script)
+            .spawn();
+        return;
+    }
+
+    let _ = std::process::Command::new("/usr/bin/open")
+        .args(["-a", editor, config_path])
+        .spawn();
+}
+
+fn applescript_string(value: &str) -> String {
+    format!("{:?}", value)
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 extern "C" fn shuttle_import(_this: &Object, _sel: Sel, _sender: id) {

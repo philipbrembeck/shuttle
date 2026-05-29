@@ -1,7 +1,7 @@
 #![allow(deprecated, unexpected_cfgs, dead_code)]
 
 use crate::config::model::Config;
-use crate::launcher::{Backend, ITermVersion, LaunchKind};
+use crate::launcher::{Backend, ITermVersion, LaunchKind, LaunchTarget};
 use crate::menu_model::MenuEntry;
 use cocoa::appkit::{NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength};
 use cocoa::base::{id, nil, NO, YES};
@@ -162,9 +162,9 @@ unsafe fn build_ns_menu(entries: &[MenuEntry], config: &Config) -> id {
                 menu.addItem_(item);
             }
             MenuEntry::Command { title, command, .. } => {
-                // Resolve what backend this command would use
-                let backend_str = resolve_backend_str(config, &command.cmd, command);
-                let item = command_item(title, &command.cmd, &backend_str);
+                // Resolve the full launch payload so target/title/theme survive to execution.
+                let launch_payload = resolve_launch_payload(config, command);
+                let item = command_item(title, &command.cmd, &launch_payload);
                 menu.addItem_(item);
             }
             MenuEntry::Disabled { title } => {
@@ -221,19 +221,25 @@ unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
 // ── Backend resolution ────────────────────────────────────────────────────────
 
 /// Returns the executor backend string for a given command and config.
-fn resolve_backend_str(
-    config: &Config,
-    cmd: &str,
-    host: &crate::config::model::CommandHost,
-) -> String {
-    // URL commands are dispatched directly
-    if is_url(cmd) {
-        return format!("url:{cmd}");
-    }
+fn resolve_launch_payload(config: &Config, host: &crate::config::model::CommandHost) -> String {
     match crate::launcher::normalize(config, host, &host.name) {
         Ok(LaunchKind::Url(url)) => format!("url:{url}"),
-        Ok(LaunchKind::Terminal(req)) => backend_to_str(&req.backend),
-        Err(_) => "terminal-app".to_string(),
+        Ok(LaunchKind::Terminal(req)) => serde_json::json!({
+            "kind": "terminal",
+            "backend": backend_to_str(&req.backend),
+            "target": target_to_str(&req.target),
+            "title": req.title,
+            "theme": req.theme_or_profile,
+        })
+        .to_string(),
+        Err(_) => serde_json::json!({
+            "kind": "terminal",
+            "backend": "terminal-app",
+            "target": "tab",
+            "title": host.name,
+            "theme": "basic",
+        })
+        .to_string(),
     }
 }
 
@@ -254,12 +260,13 @@ fn backend_to_str(backend: &Backend) -> String {
     }
 }
 
-fn is_url(cmd: &str) -> bool {
-    let cmd = cmd.trim();
-    cmd.starts_with("http://")
-        || cmd.starts_with("https://")
-        || cmd.starts_with("ssh://")
-        || cmd.starts_with("file://")
+fn target_to_str(target: &LaunchTarget) -> &'static str {
+    match target {
+        LaunchTarget::New => "new",
+        LaunchTarget::Tab => "tab",
+        LaunchTarget::Current => "current",
+        LaunchTarget::Virtual => "virtual",
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -321,7 +328,7 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        assert!(resolve_backend_str(&config, &host.cmd, &host).starts_with("url:"));
+        assert!(resolve_launch_payload(&config, &host).starts_with("url:"));
     }
 
     #[test]
@@ -340,9 +347,49 @@ mod tests {
             strategy: None,
             extra: BTreeMap::new(),
         };
-        assert_eq!(
-            resolve_backend_str(&config, &host.cmd, &host),
-            "ghostty-open"
-        );
+        assert!(resolve_launch_payload(&config, &host).contains("\"backend\":\"ghostty-open\""));
+    }
+
+    #[test]
+    fn virtual_urls_resolve_to_terminal_payload() {
+        let config = Config::default();
+        let host = CommandHost {
+            cmd: "https://example.com".into(),
+            name: "Website".into(),
+            in_terminal: Some("virtual".into()),
+            theme: None,
+            title: None,
+            backend: None,
+            strategy: None,
+            extra: BTreeMap::new(),
+        };
+        let payload = resolve_launch_payload(&config, &host);
+        assert!(!payload.starts_with("url:"));
+        assert!(payload.contains("\"backend\":\"screen\""));
+        assert!(payload.contains("\"target\":\"virtual\""));
+    }
+
+    #[test]
+    fn terminal_payload_preserves_title_theme_and_target() {
+        let config = Config {
+            terminal: Some("iTerm".into()),
+            open_in: Some("current".into()),
+            ..Config::default()
+        };
+        let host = CommandHost {
+            cmd: "ssh prod".into(),
+            name: "Prod".into(),
+            in_terminal: None,
+            theme: Some("Homebrew".into()),
+            title: Some("Production".into()),
+            backend: None,
+            strategy: None,
+            extra: BTreeMap::new(),
+        };
+        let payload = resolve_launch_payload(&config, &host);
+        assert!(payload.contains("\"backend\":\"iterm-stable\""));
+        assert!(payload.contains("\"target\":\"current\""));
+        assert!(payload.contains("\"title\":\"Production\""));
+        assert!(payload.contains("\"theme\":\"Homebrew\""));
     }
 }
