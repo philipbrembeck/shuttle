@@ -1,21 +1,51 @@
+use serde::Deserialize;
 use std::process::Command;
+
+#[derive(Debug, Deserialize)]
+struct TerminalPayload {
+    kind: String,
+    backend: String,
+    target: String,
+    title: String,
+    theme: String,
+}
 
 /// Top-level dispatch. `backend` is a resolved backend string (e.g. "ghostty-open",
 /// "terminal-app", "iterm-stable"). `cmd` is the raw command from the config.
 pub fn execute(cmd: &str, backend: &str) {
     let cmd = normalize_cmd(cmd);
+    if let Ok(payload) = serde_json::from_str::<TerminalPayload>(backend) {
+        if payload.kind == "terminal" {
+            execute_terminal_payload(&cmd, &payload);
+            return;
+        }
+    }
+
     match backend {
-        "ghostty-open" => launch_ghostty_open(&cmd),
-        "ghostty-applescript" => launch_ghostty_applescript(&cmd),
-        "iterm-stable" => launch_iterm(&cmd, false),
-        "iterm-nightly" => launch_iterm(&cmd, true),
-        "cmux-cli" => launch_cmux_cli(&cmd),
-        "cmux-socket" => launch_cmux_socket(&cmd),
-        "screen" => launch_screen(&cmd),
+        "ghostty-open" => launch_ghostty_open(&cmd, "shuttle"),
+        "ghostty-applescript" => launch_ghostty_applescript(&cmd, "new"),
+        "iterm-stable" => launch_iterm(&cmd, false, "new", "default profile"),
+        "iterm-nightly" => launch_iterm(&cmd, true, "new", "default profile"),
+        "cmux-cli" => launch_cmux_cli(&cmd, "new", "shuttle"),
+        "cmux-socket" => launch_cmux_socket(&cmd, "current", "shuttle"),
+        "screen" => launch_screen(&cmd, "shuttle"),
         // url: prefix injected by menu builder for URL commands
         url if url.starts_with("url:") => launch_url(&url["url:".len()..]),
         // terminal-app and anything unknown fall through to Terminal.app
-        _ => launch_terminal_app(&cmd),
+        _ => launch_terminal_app(&cmd, "new", "basic", "shuttle"),
+    }
+}
+
+fn execute_terminal_payload(cmd: &str, payload: &TerminalPayload) {
+    match payload.backend.as_str() {
+        "ghostty-open" => launch_ghostty_open(cmd, &payload.title),
+        "ghostty-applescript" => launch_ghostty_applescript(cmd, &payload.target),
+        "iterm-stable" => launch_iterm(cmd, false, &payload.target, &payload.theme),
+        "iterm-nightly" => launch_iterm(cmd, true, &payload.target, &payload.theme),
+        "cmux-cli" => launch_cmux_cli(cmd, &payload.target, &payload.title),
+        "cmux-socket" => launch_cmux_socket(cmd, &payload.target, &payload.title),
+        "screen" => launch_screen(cmd, &payload.title),
+        _ => launch_terminal_app(cmd, &payload.target, &payload.theme, &payload.title),
     }
 }
 
@@ -43,30 +73,55 @@ fn launch_url(url: &str) {
 
 // ── Ghostty ───────────────────────────────────────────────────────────────────
 
-fn launch_ghostty_open(cmd: &str) {
+fn launch_ghostty_open(cmd: &str, title: &str) {
     // open -na Ghostty.app --args -e sh -c "cmd"
     // Using sh -c so multi-part commands and quoting work correctly.
     Command::new("open")
-        .args(["-na", "Ghostty.app", "--args", "-e", "sh", "-c", cmd])
+        .args([
+            "-na",
+            "Ghostty.app",
+            "--args",
+            "--title",
+            title,
+            "-e",
+            "sh",
+            "-c",
+            cmd,
+        ])
         .spawn()
         .ok();
 }
 
-fn launch_ghostty_applescript(cmd: &str) {
+fn launch_ghostty_applescript(cmd: &str, target: &str) {
     let escaped = escape_for_applescript(cmd);
-    let script = format!(r#"tell application "Ghostty" to create window with command "{escaped}""#);
+    let action = match target {
+        "tab" => "create tab with command",
+        "current" => "run command",
+        _ => "create window with command",
+    };
+    let script = format!(r#"tell application "Ghostty" to {action} "{escaped}""#);
     run_osascript(&script);
 }
 
 // ── Terminal.app ──────────────────────────────────────────────────────────────
 
-fn launch_terminal_app(cmd: &str) {
+fn launch_terminal_app(cmd: &str, target: &str, theme: &str, title: &str) {
     let escaped = escape_for_applescript(cmd);
-    // do script in a brand-new window; activate brings Terminal to front
+    let theme = escape_for_applescript(theme);
+    let title = escape_for_applescript(title);
+    let target_script = match target {
+        "current" => format!("do script \"{escaped}\" in selected tab of front window"),
+        "tab" => format!("do script \"{escaped}\" in (do script \"\")"),
+        _ => format!("do script \"{escaped}\""),
+    };
     let script = format!(
         r#"tell application "Terminal"
     activate
-    do script "{escaped}"
+    {target_script}
+    try
+        set current settings of selected tab of front window to settings set "{theme}"
+        set custom title of selected tab of front window to "{title}"
+    end try
 end tell"#
     );
     run_osascript(&script);
@@ -74,13 +129,21 @@ end tell"#
 
 // ── iTerm ─────────────────────────────────────────────────────────────────────
 
-fn launch_iterm(cmd: &str, _nightly: bool) {
+fn launch_iterm(cmd: &str, nightly: bool, target: &str, profile: &str) {
     let escaped = escape_for_applescript(cmd);
-    // Works for both stable and nightly; nightly flag reserved for future profile differences
+    let profile = escape_for_applescript(profile);
+    let app = if nightly { "iTerm" } else { "iTerm2" };
+    let launch = match target {
+        "current" => format!("tell current session of current window to write text \"{escaped}\""),
+        "tab" => format!(
+            "tell current window to create tab with profile \"{profile}\" command \"{escaped}\""
+        ),
+        _ => format!("create window with profile \"{profile}\" command \"{escaped}\""),
+    };
     let script = format!(
-        r#"tell application "iTerm2"
+        r#"tell application "{app}"
     activate
-    create window with default profile command "{escaped}"
+    {launch}
 end tell"#
     );
     run_osascript(&script);
@@ -88,28 +151,45 @@ end tell"#
 
 // ── cmux ──────────────────────────────────────────────────────────────────────
 
-fn launch_cmux_cli(cmd: &str) {
+fn launch_cmux_cli(cmd: &str, target: &str, title: &str) {
     let binary = crate::launcher::cmux::default_binary()
         .unwrap_or_else(|_| std::path::PathBuf::from("cmux"));
-    Command::new(binary).args(["run", cmd]).spawn().ok();
+    match target {
+        "current" => Command::new(binary).args(["send", cmd]).spawn().ok(),
+        "virtual" => Command::new(binary)
+            .args(["run", "--background", cmd])
+            .spawn()
+            .ok(),
+        _ => Command::new(binary)
+            .args(["workspace", "send", title, cmd])
+            .spawn()
+            .ok(),
+    };
 }
 
-fn launch_cmux_socket(cmd: &str) {
+fn launch_cmux_socket(cmd: &str, target: &str, title: &str) {
     if let Ok(path) = crate::launcher::cmux::socket_path() {
-        let payload = crate::launcher::cmux::socket_request(
-            1,
-            "surface.send",
-            serde_json::json!({ "text": cmd }),
-        );
+        let (method, params) = match target {
+            "current" => ("surface.send", serde_json::json!({ "text": cmd })),
+            "virtual" => (
+                "command.run",
+                serde_json::json!({ "command": cmd, "background": true }),
+            ),
+            _ => (
+                "workspace.send",
+                serde_json::json!({ "workspace": title, "text": cmd }),
+            ),
+        };
+        let payload = crate::launcher::cmux::socket_request(1, method, params);
         crate::launcher::cmux::send_socket_request(&path, &payload).ok();
     }
 }
 
 // ── Virtual / screen ─────────────────────────────────────────────────────────
 
-fn launch_screen(cmd: &str) {
+fn launch_screen(cmd: &str, title: &str) {
     Command::new("screen")
-        .args(["-d", "-m", "-S", "shuttle", "sh", "-lc", cmd])
+        .args(["-d", "-m", "-S", title, "sh", "-lc", cmd])
         .spawn()
         .ok();
 }
