@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+commit_msg_file="${1:-}"
+
+if [[ -z "$commit_msg_file" || ! -f "$commit_msg_file" ]]; then
+  echo "commit-msg hook requires the path to the commit message file." >&2
+  exit 1
+fi
+
+first_line="$(head -n 1 "$commit_msg_file")"
+
+# Let Git-generated messages and autosquash commits through.
+case "$first_line" in
+  "Merge "*|"Revert \""*|"fixup! "*|"squash! "*)
+    exit 0
+    ;;
+esac
+
+conventional_commit_regex='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9._/-]+\))?!?: .{1,}$'
+
+if [[ ! "$first_line" =~ $conventional_commit_regex ]]; then
+  cat >&2 <<'EOF'
+Commit message must follow Conventional Commits:
+
+  <type>[optional scope][!]: <description>
+
+Allowed types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
+Examples:
+  feat: add SSH host import
+  fix(menu): preserve alternate config reload
+  docs!: document breaking config change
+EOF
+  exit 1
+fi
