@@ -40,6 +40,10 @@ pub fn register_delegate_class() -> &'static Class {
                 sel!(shuttleExport:),
                 shuttle_export as extern "C" fn(&Object, Sel, id),
             );
+            decl.add_method(
+                sel!(shuttleCheckForUpdates:),
+                shuttle_check_for_updates as extern "C" fn(&Object, Sel, id),
+            );
         }
 
         decl.register();
@@ -112,4 +116,8 @@ extern "C" fn shuttle_export(_this: &Object, _sel: Sel, _sender: id) {
             }
         }
     }
+}
+
+extern "C" fn shuttle_check_for_updates(_this: &Object, _sel: Sel, _sender: id) {
+    crate::update::check_for_updates_async();
 }

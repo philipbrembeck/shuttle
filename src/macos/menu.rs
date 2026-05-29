@@ -71,6 +71,7 @@ unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) 
         ("Configure...", sel!(shuttleConfigure:)),
         ("Import...", sel!(shuttleImport:)),
         ("Export...", sel!(shuttleExport:)),
+        ("Check for Updates...", sel!(shuttleCheckForUpdates:)),
     ] {
         let item = titled_action_item(label, action);
         item.setTarget_(delegate);

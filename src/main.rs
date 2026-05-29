@@ -3,6 +3,7 @@ mod launcher;
 #[cfg(target_os = "macos")]
 mod macos;
 mod menu_model;
+mod update;
 
 fn main() {
     #[cfg(target_os = "macos")]
