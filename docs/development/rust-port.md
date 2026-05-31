@@ -8,6 +8,16 @@ Run the local quality gate before committing Rust port changes:
 
 The script runs formatting, strict Clippy (`-D warnings`), tests, a build check, and JSON validation for the Rust default config.
 
+## Dependency updates
+
+Check compatible dependency updates with:
+
+```sh
+cargo update --dry-run --verbose
+```
+
+When updating direct dependencies, use `cargo add <crate>` or `cargo add <crate>@<major>` instead of editing `Cargo.toml` manually. This asks Cargo to resolve the newest available compatible requirement and keeps `Cargo.toml` and `Cargo.lock` in sync through Cargo's resolver.
+
 ## Git hooks
 
 Install the local hooks by copying or symlinking the Husky-compatible scripts into `.git/hooks`:
