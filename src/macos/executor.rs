@@ -231,7 +231,7 @@ fn screen_command(cmd: &str, title: &str) -> Command {
 
 /// Escape a string for embedding inside an AppleScript double-quoted string.
 fn escape_for_applescript(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+    crate::macos::util::escape_for_applescript(s)
 }
 
 #[cfg(not(test))]

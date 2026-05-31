@@ -1,5 +1,7 @@
+#[cfg(test)]
 use super::{ITermVersion, LaunchRequest, LaunchTarget};
 
+#[cfg(test)]
 pub fn applescript_resource(request: &LaunchRequest, version: &ITermVersion) -> &'static str {
     match (version, &request.target) {
         (ITermVersion::Stable, LaunchTarget::New) => "iTerm2-stable-new-window.scpt",
@@ -12,6 +14,7 @@ pub fn applescript_resource(request: &LaunchRequest, version: &ITermVersion) -> 
     }
 }
 
+#[cfg(test)]
 pub fn script_parameters(request: &LaunchRequest) -> Vec<String> {
     if request.target == LaunchTarget::Virtual {
         vec![request.command.clone(), request.title.clone()]

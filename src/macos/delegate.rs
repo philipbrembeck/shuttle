@@ -17,10 +17,13 @@ use std::sync::Once;
 static REGISTER: Once = Once::new();
 
 #[cfg(not(test))]
-pub fn register_delegate_class() -> &'static Class {
+pub fn register_delegate_class() -> Option<&'static Class> {
     REGISTER.call_once(|| {
         let superclass = class!(NSObject);
-        let mut decl = ClassDecl::new("ShuttleDelegate", superclass).unwrap();
+        let Some(mut decl) = ClassDecl::new("ShuttleDelegate", superclass) else {
+            eprintln!("Shuttle: Objective-C class ShuttleDelegate is already registered");
+            return;
+        };
 
         // Conform to NSMenuDelegate so menuWillOpen: fires.
         if let Some(proto) = Protocol::get("NSMenuDelegate") {
@@ -57,12 +60,15 @@ pub fn register_delegate_class() -> &'static Class {
         decl.register();
     });
 
-    Class::get("ShuttleDelegate").unwrap()
+    Class::get("ShuttleDelegate")
 }
 
 #[cfg(not(test))]
 pub fn create_delegate() -> id {
-    let cls = register_delegate_class();
+    let Some(cls) = register_delegate_class() else {
+        eprintln!("Shuttle: Objective-C class ShuttleDelegate is unavailable");
+        return nil;
+    };
     unsafe { msg_send![cls, new] }
 }
 

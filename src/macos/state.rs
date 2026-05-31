@@ -19,10 +19,17 @@ unsafe impl Sync for AppState {}
 
 pub static APP_STATE: Mutex<Option<AppState>> = Mutex::new(None);
 
+fn app_state() -> std::sync::MutexGuard<'static, Option<AppState>> {
+    APP_STATE.lock().unwrap_or_else(|poisoned| {
+        eprintln!("Shuttle: app state mutex was poisoned; continuing with stored state");
+        poisoned.into_inner()
+    })
+}
+
 pub fn init(paths: ConfigPaths, snapshot: ReloadSnapshot, delegate: id, status_item: id) {
     #[cfg(test)]
     let _ = (delegate, status_item);
-    let mut guard = APP_STATE.lock().unwrap();
+    let mut guard = app_state();
     *guard = Some(AppState {
         paths,
         snapshot,
@@ -44,8 +51,10 @@ pub fn reload_if_needed() {
     }
 
     let (delegate, status_item, result) = {
-        let guard = APP_STATE.lock().unwrap();
-        let state = guard.as_ref().unwrap();
+        let guard = app_state();
+        let Some(state) = guard.as_ref() else {
+            return;
+        };
         let delegate = state.delegate;
         let status_item = state.status_item;
         let result = config::load_merged(&state.paths).map(|mut cfg| {
@@ -60,7 +69,7 @@ pub fn reload_if_needed() {
     match result {
         Ok((entries, cfg, new_snap)) => {
             {
-                let mut guard = APP_STATE.lock().unwrap();
+                let mut guard = app_state();
                 if let Some(state) = guard.as_mut() {
                     state.snapshot = new_snap;
                 }
@@ -77,7 +86,7 @@ pub fn reload_if_needed() {
 }
 
 fn reload_needed() -> bool {
-    let guard = APP_STATE.lock().unwrap();
+    let guard = app_state();
     guard.as_ref().is_some_and(|state| {
         let new_snap = config::snapshot(&state.paths);
         config::needs_reload(&state.snapshot, &new_snap)

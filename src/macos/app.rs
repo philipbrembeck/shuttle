@@ -10,6 +10,17 @@ use cocoa::foundation::NSAutoreleasePool;
 use objc::{class, msg_send, sel, sel_impl};
 
 #[cfg(not(test))]
+fn default_config_paths() -> crate::config::ConfigPaths {
+    crate::config::ConfigPaths {
+        main: dirs::home_dir()
+            .unwrap_or_default()
+            .join(".config/shuttle/config.json"),
+        alt: None,
+        used_main_override: false,
+    }
+}
+
+#[cfg(not(test))]
 pub fn run() {
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);
@@ -21,15 +32,8 @@ pub fn run() {
 
         let (entries, config, paths, snapshot) = match crate::build_menu_entries() {
             Ok((entries, config)) => {
-                let paths = crate::config::discover_paths().unwrap_or_else(|_| {
-                    crate::config::ConfigPaths {
-                        main: dirs::home_dir()
-                            .unwrap_or_default()
-                            .join(".config/shuttle/config.json"),
-                        alt: None,
-                        used_main_override: false,
-                    }
-                });
+                let paths =
+                    crate::config::discover_paths().unwrap_or_else(|_| default_config_paths());
                 let snapshot = crate::config::snapshot(&paths);
                 (entries, config, paths, snapshot)
             }
@@ -37,13 +41,7 @@ pub fn run() {
                 eprintln!("Shuttle config error: {error}");
                 let entries = crate::menu_model::error_menu("Error parsing config");
                 let config = crate::config::model::Config::default();
-                let paths = crate::config::ConfigPaths {
-                    main: dirs::home_dir()
-                        .unwrap_or_default()
-                        .join(".config/shuttle/config.json"),
-                    alt: None,
-                    used_main_override: false,
-                };
+                let paths = default_config_paths();
                 let snapshot = crate::config::ReloadSnapshot::default();
                 (entries, config, paths, snapshot)
             }

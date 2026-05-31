@@ -1,4 +1,4 @@
-#![allow(deprecated, unexpected_cfgs, dead_code)]
+#![allow(deprecated, unexpected_cfgs)]
 
 use crate::config::model::Config;
 use crate::launcher::{Backend, ITermVersion, LaunchKind, LaunchTarget};
@@ -14,6 +14,7 @@ use objc::{class, msg_send, sel, sel_impl};
 
 // ── Public spec type (used in tests without AppKit) ──────────────────────────
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeMenuSpec {
     Menu {
@@ -27,6 +28,7 @@ pub enum NativeMenuSpec {
     Separator,
 }
 
+#[cfg(test)]
 pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
     entries
         .iter()
@@ -231,6 +233,9 @@ unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
 // ── Backend resolution ────────────────────────────────────────────────────────
 
 /// Returns the executor backend string for a given command and config.
+// NOTE: The ObjC action target stores this serialized payload on NSMenuItem
+// actions, so `executor::execute` must deserialize the same backend/target
+// strings below. Keep both sides in sync when adding launcher variants.
 fn resolve_launch_payload(
     config: &Config,
     host: &crate::config::model::CommandHost,
