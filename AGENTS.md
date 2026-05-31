@@ -17,9 +17,9 @@ Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY
 ## Need to know
 
 - The Rust app is source of truth; removed Objective-C/Xcode code MUST NOT guide changes.
-- Shuttle builds menus from user JSON plus SSH config, then launches via Terminal.app, iTerm, Ghostty, cmux, URLs, or virtual/background `screen`.
-- Default config is `~/.shuttle.json`; `~/.shuttle.path` MAY override it.
-- Alternate config uses `~/.shuttle-alt.path` or `~/.shuttle-alt.json` when present.
+- Shuttle builds menus from user JSON or experimental YAML plus SSH config, then launches via Terminal.app, iTerm, Ghostty, cmux, URLs, or virtual/background `screen`.
+- First-run default config is `~/.config/shuttle/config.json`; `~/.shuttle.path` MAY override it. Standard `config.yaml`/`config.yml` files in `~/.config/shuttle/` are experimental and win over standard JSON when present.
+- Alternate config uses `~/.shuttle-alt.path`, experimental `~/.config/shuttle/alt.yaml`/`alt.yml`, `~/.config/shuttle/alt.json`, or legacy `~/.shuttle-alt.json` when present.
 - Menus reload when main config, alternate config, `/etc/ssh/ssh_config`, or `~/.ssh/config` mtimes change.
 - SSH import supports `# shuttle.<key> <value>` metadata and legacy `Include` behavior.
 - Existing config keys (`terminal`, `iTerm_version`, `open_in`, `default_theme`, `inTerminal`, `theme`, `title`) MUST keep working.
@@ -27,6 +27,8 @@ Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY
 ## Workflow rules
 
 - You MUST work on a new branch; do not change `main` directly.
+  Allowed branch prefixes are "feat/", "fix/", "refactor/", "chore/", "deps/", and "docs/".
+  This does NOT apply to trivial changes like typos, formatting, or planning; those can be made directly on `main`.
 - You MUST regularly update your branch from `main` during longer work.
 - You MUST keep commits free of build artifacts, personal config, editor state, and machine-specific files.
 - You MUST document every architecture decision in `docs/ADR/`; create the directory if missing.

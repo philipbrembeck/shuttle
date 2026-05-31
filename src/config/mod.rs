@@ -28,6 +28,36 @@ pub enum ConfigError {
         path: PathBuf,
         source: serde_json::Error,
     },
+    #[error("invalid YAML in {path}: {source}. Validate with `ruby -e 'require \"yaml\"; YAML.load_file(ARGV[0])' {path}` or another YAML linter before reloading Shuttle.")]
+    Yaml {
+        path: PathBuf,
+        source: yaml_serde::Error,
+    },
+    #[error("unsupported config extension for {path}. Use .json, .yaml, or .yml.")]
+    UnsupportedExtension { path: PathBuf },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConfigFormat {
+    Json,
+    Yaml,
+}
+
+impl ConfigFormat {
+    fn from_path(path: &Path) -> Result<Self, ConfigError> {
+        match path.extension().and_then(|extension| extension.to_str()) {
+            Some(extension) if extension.eq_ignore_ascii_case("json") => Ok(Self::Json),
+            Some(extension)
+                if extension.eq_ignore_ascii_case("yaml")
+                    || extension.eq_ignore_ascii_case("yml") =>
+            {
+                Ok(Self::Yaml)
+            }
+            _ => Err(ConfigError::UnsupportedExtension {
+                path: path.to_path_buf(),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,8 +83,8 @@ pub fn discover_paths_in(home: PathBuf) -> Result<ConfigPaths, ConfigError> {
     // Explicit override via ~/.shuttle.path wins over everything.
     let override_file = home.join(".shuttle.path");
     if override_file.exists() {
-        let main = read_path_file(&override_file)?;
-        let alt = resolve_alt_path(&home);
+        let main = read_config_path_file(&override_file)?;
+        let alt = resolve_alt_path(&home)?;
         return Ok(ConfigPaths {
             main,
             alt,
@@ -62,15 +92,14 @@ pub fn discover_paths_in(home: PathBuf) -> Result<ConfigPaths, ConfigError> {
         });
     }
 
-    // Preferred location: ~/.config/shuttle/config.json
     let config_dir = home.join(".config").join(CONFIG_DIR_NAME);
     let preferred = config_dir.join(CONFIG_FILE_NAME);
 
     // Legacy location: ~/.shuttle.json (migrate automatically if found)
     let legacy = home.join(LEGACY_CONFIG_FILE);
 
-    let main = if preferred.exists() {
-        preferred
+    let main = if let Some(existing) = first_existing(&standard_main_candidates(&config_dir)) {
+        existing
     } else if legacy.exists() {
         // Migrate: copy legacy → preferred location and keep using it
         if let Ok(()) = fs::create_dir_all(&config_dir) {
@@ -82,11 +111,11 @@ pub fn discover_paths_in(home: PathBuf) -> Result<ConfigPaths, ConfigError> {
             legacy
         }
     } else {
-        // Neither exists — first run, use preferred location
+        // Neither exists — first run, use JSON default location
         preferred
     };
 
-    let alt = resolve_alt_path(&home);
+    let alt = resolve_alt_path(&home)?;
     Ok(ConfigPaths {
         main,
         alt,
@@ -95,22 +124,36 @@ pub fn discover_paths_in(home: PathBuf) -> Result<ConfigPaths, ConfigError> {
 }
 
 /// Resolve the alternate config path.
-fn resolve_alt_path(home: &Path) -> Option<PathBuf> {
+fn resolve_alt_path(home: &Path) -> Result<Option<PathBuf>, ConfigError> {
     let alt_override = home.join(".shuttle-alt.path");
     if alt_override.exists() {
-        read_path_file(&alt_override).ok()
+        read_config_path_file(&alt_override).map(Some)
     } else {
-        // Check both locations for the alternate config.
-        let preferred_alt = home.join(".config").join(CONFIG_DIR_NAME).join("alt.json");
+        let config_dir = home.join(".config").join(CONFIG_DIR_NAME);
         let legacy_alt = home.join(".shuttle-alt.json");
-        if preferred_alt.exists() {
-            Some(preferred_alt)
-        } else if legacy_alt.exists() {
-            Some(legacy_alt)
-        } else {
-            None
-        }
+        Ok(first_existing(&standard_alt_candidates(&config_dir))
+            .or_else(|| legacy_alt.exists().then_some(legacy_alt)))
     }
+}
+
+fn standard_main_candidates(config_dir: &Path) -> [PathBuf; 3] {
+    [
+        config_dir.join("config.yaml"),
+        config_dir.join("config.yml"),
+        config_dir.join(CONFIG_FILE_NAME),
+    ]
+}
+
+fn standard_alt_candidates(config_dir: &Path) -> [PathBuf; 3] {
+    [
+        config_dir.join("alt.yaml"),
+        config_dir.join("alt.yml"),
+        config_dir.join("alt.json"),
+    ]
+}
+
+fn first_existing(candidates: &[PathBuf]) -> Option<PathBuf> {
+    candidates.iter().find(|path| path.exists()).cloned()
 }
 
 /// Write the bundled default config on first run.
@@ -136,18 +179,23 @@ pub fn load_config(path: &Path) -> Result<Config, ConfigError> {
         path: path.to_path_buf(),
         source,
     })?;
-    serde_json::from_slice(&bytes).map_err(|source| ConfigError::Json {
-        path: path.to_path_buf(),
-        source,
-    })
+    match ConfigFormat::from_path(path)? {
+        ConfigFormat::Json => serde_json::from_slice(&bytes).map_err(|source| ConfigError::Json {
+            path: path.to_path_buf(),
+            source,
+        }),
+        ConfigFormat::Yaml => yaml_serde::from_slice(&bytes).map_err(|source| ConfigError::Yaml {
+            path: path.to_path_buf(),
+            source,
+        }),
+    }
 }
 
 pub fn load_merged(paths: &ConfigPaths) -> Result<Config, ConfigError> {
     let mut config = load_config(&paths.main)?;
     if let Some(alt) = &paths.alt {
-        if let Ok(mut alt_config) = load_config(alt) {
-            config.hosts.append(&mut alt_config.hosts);
-        }
+        let mut alt_config = load_config(alt)?;
+        config.hosts.append(&mut alt_config.hosts);
     }
     Ok(config)
 }
@@ -168,6 +216,12 @@ pub fn needs_reload(old: &ReloadSnapshot, new: &ReloadSnapshot) -> bool {
         || new.alt_config != old.alt_config
         || new.ssh_system != old.ssh_system
         || new.ssh_user != old.ssh_user
+}
+
+fn read_config_path_file(path: &Path) -> Result<PathBuf, ConfigError> {
+    let config_path = read_path_file(path)?;
+    ConfigFormat::from_path(&config_path)?;
+    Ok(config_path)
 }
 
 fn read_path_file(path: &Path) -> Result<PathBuf, ConfigError> {
@@ -214,6 +268,9 @@ fn home_dir() -> Result<PathBuf, ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const MINIMAL_JSON: &str = r#"{"hosts":[{"cmd":"ssh prod","name":"Prod"}]}"#;
+    const MINIMAL_YAML: &str = "hosts:\n  - cmd: ssh prod\n    name: Prod\n";
 
     #[test]
     fn prefers_xdg_config_path_on_first_run() {
@@ -288,11 +345,178 @@ mod tests {
     }
 
     #[test]
+    fn load_config_loads_valid_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.json");
+        fs::write(&path, MINIMAL_JSON).unwrap();
+        let config = load_config(&path).unwrap();
+        assert_eq!(config.hosts.len(), 1);
+    }
+
+    #[test]
+    fn load_config_loads_valid_yaml() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.yaml");
+        fs::write(&path, MINIMAL_YAML).unwrap();
+        let config = load_config(&path).unwrap();
+        assert_eq!(config.hosts.len(), 1);
+    }
+
+    #[test]
+    fn load_config_loads_yml_as_yaml() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.yml");
+        fs::write(&path, MINIMAL_YAML).unwrap();
+        let config = load_config(&path).unwrap();
+        assert_eq!(config.hosts.len(), 1);
+    }
+
+    #[test]
+    fn load_config_loads_yaml_example_resource() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.yaml");
+        fs::write(&path, include_str!("../../resources/shuttle.example.yaml")).unwrap();
+        let config = load_config(&path).unwrap();
+        assert_eq!(config.terminal.as_deref(), Some("Ghostty"));
+        assert!(!config.hosts.is_empty());
+    }
+
+    #[test]
     fn invalid_json_returns_structured_error() {
         let temp = tempfile::tempdir().unwrap();
         let bad = temp.path().join("bad.json");
         fs::write(&bad, "{ nope").unwrap();
         assert!(matches!(load_config(&bad), Err(ConfigError::Json { .. })));
+    }
+
+    #[test]
+    fn invalid_yaml_returns_structured_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let bad = temp.path().join("bad.yaml");
+        fs::write(&bad, "hosts:\n  - [nope\n").unwrap();
+        assert!(matches!(load_config(&bad), Err(ConfigError::Yaml { .. })));
+    }
+
+    #[test]
+    fn extensionless_path_returns_unsupported_extension() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config");
+        fs::write(&path, MINIMAL_JSON).unwrap();
+        assert!(matches!(
+            load_config(&path),
+            Err(ConfigError::UnsupportedExtension { .. })
+        ));
+    }
+
+    #[test]
+    fn unknown_extension_returns_unsupported_extension() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        fs::write(&path, MINIMAL_JSON).unwrap();
+        assert!(matches!(
+            load_config(&path),
+            Err(ConfigError::UnsupportedExtension { .. })
+        ));
+    }
+
+    #[test]
+    fn config_yaml_beats_config_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(".config/shuttle");
+        fs::create_dir_all(&dir).unwrap();
+        let yaml = dir.join("config.yaml");
+        let json = dir.join("config.json");
+        fs::write(&yaml, MINIMAL_YAML).unwrap();
+        fs::write(&json, MINIMAL_JSON).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.main, yaml);
+    }
+
+    #[test]
+    fn config_yml_beats_config_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(".config/shuttle");
+        fs::create_dir_all(&dir).unwrap();
+        let yml = dir.join("config.yml");
+        let json = dir.join("config.json");
+        fs::write(&yml, MINIMAL_YAML).unwrap();
+        fs::write(&json, MINIMAL_JSON).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.main, yml);
+    }
+
+    #[test]
+    fn config_yaml_beats_config_yml() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(".config/shuttle");
+        fs::create_dir_all(&dir).unwrap();
+        let yaml = dir.join("config.yaml");
+        let yml = dir.join("config.yml");
+        fs::write(&yaml, MINIMAL_YAML).unwrap();
+        fs::write(&yml, MINIMAL_YAML).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.main, yaml);
+    }
+
+    #[test]
+    fn alt_yaml_beats_alt_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(".config/shuttle");
+        fs::create_dir_all(&dir).unwrap();
+        let yaml = dir.join("alt.yaml");
+        let json = dir.join("alt.json");
+        fs::write(&yaml, MINIMAL_YAML).unwrap();
+        fs::write(&json, MINIMAL_JSON).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.alt, Some(yaml));
+    }
+
+    #[test]
+    fn alt_yml_beats_alt_json() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join(".config/shuttle");
+        fs::create_dir_all(&dir).unwrap();
+        let yml = dir.join("alt.yml");
+        let json = dir.join("alt.json");
+        fs::write(&yml, MINIMAL_YAML).unwrap();
+        fs::write(&json, MINIMAL_JSON).unwrap();
+        let paths = discover_paths_in(temp.path().to_path_buf()).unwrap();
+        assert_eq!(paths.alt, Some(yml));
+    }
+
+    #[test]
+    fn invalid_main_override_extension_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::write(temp.path().join(".shuttle.path"), "/tmp/custom.toml\n").unwrap();
+        assert!(matches!(
+            discover_paths_in(temp.path().to_path_buf()),
+            Err(ConfigError::UnsupportedExtension { .. })
+        ));
+    }
+
+    #[test]
+    fn invalid_alt_override_extension_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        fs::write(temp.path().join(".shuttle-alt.path"), "/tmp/custom.toml\n").unwrap();
+        assert!(matches!(
+            discover_paths_in(temp.path().to_path_buf()),
+            Err(ConfigError::UnsupportedExtension { .. })
+        ));
+    }
+
+    #[test]
+    fn load_merged_surfaces_alt_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        let main = temp.path().join("config.json");
+        let alt = temp.path().join("alt.json");
+        fs::write(&main, MINIMAL_JSON).unwrap();
+        fs::write(&alt, "{ nope").unwrap();
+        let paths = ConfigPaths {
+            main,
+            alt: Some(alt),
+            used_main_override: false,
+        };
+        assert!(matches!(load_merged(&paths), Err(ConfigError::Json { .. })));
     }
 
     #[test]

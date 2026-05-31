@@ -1,0 +1,36 @@
+# Experimental YAML config for Shuttle.
+# YAML is useful for hand-written configs because it supports comments and less punctuation.
+editor: default
+launch_at_login: false
+terminal: Ghostty
+open_in: tab
+show_ssh_config_hosts: true
+
+hosts:
+  - cmd: ssh prod.example.com
+    name: Production SSH
+  - cmd: https://grafana.example.com
+    name: Grafana
+  - cmd: open https://status.example.com
+    name: Status Page
+    inTerminal: virtual
+  - cmd: ssh pair.example.com
+    name: Pairing Workspace
+    backend: cmux-cli
+    strategy: workspace
+  - cmd: ssh socket.example.com
+    name: Socket Backend
+    backend: cmux-socket
+    strategy: socket
+  - Engineering:
+      - cmd: ssh web-1.staging
+        name: Web 1
+      - cmd: ssh db-1.staging
+        name: Database
+      - Tools:
+          - cmd: https://deploy.example.com
+            name: Deploy Dashboard
+          - cmd: ssh logs.example.com
+            name: Logs
+            backend: ghostty-applescript
+            strategy: applescript
