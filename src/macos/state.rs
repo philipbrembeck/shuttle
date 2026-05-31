@@ -7,7 +7,9 @@ use std::sync::Mutex;
 pub struct AppState {
     pub paths: ConfigPaths,
     pub snapshot: ReloadSnapshot,
+    #[cfg(not(test))]
     pub delegate: id,
+    #[cfg(not(test))]
     pub status_item: id,
 }
 
@@ -18,25 +20,24 @@ unsafe impl Sync for AppState {}
 pub static APP_STATE: Mutex<Option<AppState>> = Mutex::new(None);
 
 pub fn init(paths: ConfigPaths, snapshot: ReloadSnapshot, delegate: id, status_item: id) {
+    #[cfg(test)]
+    let _ = (delegate, status_item);
     let mut guard = APP_STATE.lock().unwrap();
     *guard = Some(AppState {
         paths,
         snapshot,
+        #[cfg(not(test))]
         delegate,
+        #[cfg(not(test))]
         status_item,
     });
 }
 
 /// Called by the menu delegate's `menuWillOpen:` on the main thread.
 /// Reloads config and rebuilds the NSMenu only when a watched file changed.
+#[cfg(not(test))]
 pub fn reload_if_needed() {
-    let needs = {
-        let guard = APP_STATE.lock().unwrap();
-        guard.as_ref().is_some_and(|state| {
-            let new_snap = config::snapshot(&state.paths);
-            config::needs_reload(&state.snapshot, &new_snap)
-        })
-    };
+    let needs = reload_needed();
 
     if !needs {
         return;
@@ -64,10 +65,71 @@ pub fn reload_if_needed() {
                     state.snapshot = new_snap;
                 }
             }
+            #[cfg(not(test))]
             unsafe {
                 crate::macos::menu::rebuild_menu(status_item, &entries, &cfg, delegate);
             }
+            #[cfg(test)]
+            let _ = (status_item, entries, cfg, delegate);
         }
         Err(e) => eprintln!("Shuttle config reload error: {e}"),
+    }
+}
+
+fn reload_needed() -> bool {
+    let guard = APP_STATE.lock().unwrap();
+    guard.as_ref().is_some_and(|state| {
+        let new_snap = config::snapshot(&state.paths);
+        config::needs_reload(&state.snapshot, &new_snap)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cocoa::base::nil;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn init_stores_state_and_no_snapshot_change_skips_reload() {
+        let temp = tempfile::tempdir().unwrap();
+        let main = temp.path().join("config.json");
+        std::fs::write(&main, "{}").unwrap();
+        let paths = ConfigPaths {
+            main: main.clone(),
+            alt: None,
+            used_main_override: false,
+        };
+        let snapshot = config::snapshot(&paths);
+        init(paths.clone(), snapshot.clone(), nil, nil);
+
+        assert!(!reload_needed());
+        let guard = APP_STATE.lock().unwrap();
+        let state = guard.as_ref().unwrap();
+        assert_eq!(state.paths, paths);
+        assert_eq!(state.snapshot, snapshot);
+    }
+
+    #[test]
+    fn reload_needed_detects_changed_snapshot() {
+        let temp = tempfile::tempdir().unwrap();
+        let main = temp.path().join("config.json");
+        std::fs::write(&main, "{}").unwrap();
+        let paths = ConfigPaths {
+            main,
+            alt: None,
+            used_main_override: false,
+        };
+        init(
+            paths,
+            ReloadSnapshot {
+                main_config: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1)),
+                ..ReloadSnapshot::default()
+            },
+            nil,
+            nil,
+        );
+
+        assert!(reload_needed());
     }
 }

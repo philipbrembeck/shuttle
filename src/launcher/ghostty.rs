@@ -83,6 +83,11 @@ mod tests {
     fn missing_app_has_actionable_error() {
         let error = GhosttyError::MissingApplication.to_string();
         assert!(error.contains("install Ghostty"));
+        assert_eq!(
+            automation_denied_error(),
+            GhosttyError::AppleScriptUnavailable
+        );
+        let _ = detect_application();
     }
 
     #[test]
@@ -116,7 +121,10 @@ mod tests {
 
     #[test]
     fn builds_applescript_for_targets() {
+        assert!(applescript_source(&request(LaunchTarget::New)).contains("create window"));
         assert!(applescript_source(&request(LaunchTarget::Tab)).contains("create tab"));
         assert!(applescript_source(&request(LaunchTarget::Current)).contains("run command"));
+        assert!(applescript_source(&request(LaunchTarget::Virtual))
+            .contains("does not support virtual"));
     }
 }

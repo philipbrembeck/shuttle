@@ -1,14 +1,22 @@
 #![allow(deprecated, unexpected_cfgs)]
 
+#[cfg(not(test))]
 use cocoa::base::{id, nil};
+#[cfg(not(test))]
 use cocoa::foundation::NSString;
+#[cfg(not(test))]
 use objc::declare::ClassDecl;
+#[cfg(not(test))]
 use objc::runtime::{Class, Object, Protocol, Sel};
+#[cfg(not(test))]
 use objc::{class, msg_send, sel, sel_impl};
+#[cfg(not(test))]
 use std::sync::Once;
 
+#[cfg(not(test))]
 static REGISTER: Once = Once::new();
 
+#[cfg(not(test))]
 pub fn register_delegate_class() -> &'static Class {
     REGISTER.call_once(|| {
         let superclass = class!(NSObject);
@@ -52,6 +60,7 @@ pub fn register_delegate_class() -> &'static Class {
     Class::get("ShuttleDelegate").unwrap()
 }
 
+#[cfg(not(test))]
 pub fn create_delegate() -> id {
     let cls = register_delegate_class();
     unsafe { msg_send![cls, new] }
@@ -59,17 +68,20 @@ pub fn create_delegate() -> id {
 
 // ── NSMenuDelegate ────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 extern "C" fn menu_will_open(_this: &Object, _sel: Sel, _menu: id) {
     crate::macos::state::reload_if_needed();
 }
 
 /// Fired by the NSTimer in app.rs every second — reliable hot reload fallback.
+#[cfg(not(test))]
 extern "C" fn check_reload(_this: &Object, _sel: Sel, _timer: id) {
     crate::macos::state::reload_if_needed();
 }
 
 // ── Menu actions ──────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 extern "C" fn shuttle_configure(_this: &Object, _sel: Sel, _sender: id) {
     let paths = crate::config::discover_paths();
     let config_path = paths
@@ -84,15 +96,39 @@ extern "C" fn shuttle_configure(_this: &Object, _sel: Sel, _sender: id) {
     open_config_with_editor(&config_path, &editor);
 }
 
+#[cfg(not(test))]
 fn open_config_with_editor(config_path: &str, editor: &str) {
-    let editor = editor.trim();
-    if editor.is_empty() || editor.eq_ignore_ascii_case("default") {
-        unsafe {
+    match editor_action(config_path, editor) {
+        EditorAction::Default => unsafe {
             let ns_path = NSString::alloc(nil).init_str(config_path);
             let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
             let _: () = msg_send![workspace, openFile: ns_path];
+        },
+        EditorAction::TerminalScript(script) => {
+            let _ = std::process::Command::new("/usr/bin/osascript")
+                .arg("-e")
+                .arg(script)
+                .spawn();
         }
-        return;
+        EditorAction::OpenWithApp { app, path } => {
+            let _ = std::process::Command::new("/usr/bin/open")
+                .args(["-a", &app, &path])
+                .spawn();
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum EditorAction {
+    Default,
+    TerminalScript(String),
+    OpenWithApp { app: String, path: String },
+}
+
+fn editor_action(config_path: &str, editor: &str) -> EditorAction {
+    let editor = editor.trim();
+    if editor.is_empty() || editor.eq_ignore_ascii_case("default") {
+        return EditorAction::Default;
     }
 
     if matches!(editor, "nano" | "vi" | "vim" | "nvim" | "emacs") {
@@ -101,16 +137,13 @@ fn open_config_with_editor(config_path: &str, editor: &str) {
             "tell application \"Terminal\"\n    activate\n    do script {}\nend tell",
             applescript_string(&command)
         );
-        let _ = std::process::Command::new("/usr/bin/osascript")
-            .arg("-e")
-            .arg(script)
-            .spawn();
-        return;
+        return EditorAction::TerminalScript(script);
     }
 
-    let _ = std::process::Command::new("/usr/bin/open")
-        .args(["-a", editor, config_path])
-        .spawn();
+    EditorAction::OpenWithApp {
+        app: editor.to_string(),
+        path: config_path.to_string(),
+    }
 }
 
 fn applescript_string(value: &str) -> String {
@@ -121,6 +154,7 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+#[cfg(not(test))]
 extern "C" fn shuttle_import(_this: &Object, _sel: Sel, _sender: id) {
     unsafe {
         let panel: id = msg_send![class!(NSOpenPanel), openPanel];
@@ -142,6 +176,7 @@ extern "C" fn shuttle_import(_this: &Object, _sel: Sel, _sender: id) {
     }
 }
 
+#[cfg(not(test))]
 extern "C" fn shuttle_export(_this: &Object, _sel: Sel, _sender: id) {
     unsafe {
         let panel: id = msg_send![class!(NSSavePanel), savePanel];
@@ -158,6 +193,48 @@ extern "C" fn shuttle_export(_this: &Object, _sel: Sel, _sender: id) {
     }
 }
 
+#[cfg(not(test))]
 extern "C" fn shuttle_check_for_updates(_this: &Object, _sel: Sel, _sender: id) {
     crate::update::check_for_updates_async();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builds_editor_actions() {
+        assert_eq!(
+            editor_action("/tmp/config.json", "default"),
+            EditorAction::Default
+        );
+        assert_eq!(
+            editor_action("/tmp/config.json", "  "),
+            EditorAction::Default
+        );
+
+        let terminal = editor_action("/tmp/it's.json", "vim");
+        match terminal {
+            EditorAction::TerminalScript(script) => {
+                assert!(script.contains("Terminal"));
+                assert!(script.contains("it"));
+                assert!(script.contains("s.json"));
+            }
+            other => panic!("unexpected editor action: {other:?}"),
+        }
+
+        assert_eq!(
+            editor_action("/tmp/config.json", "TextEdit"),
+            EditorAction::OpenWithApp {
+                app: "TextEdit".into(),
+                path: "/tmp/config.json".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn quotes_strings_for_shell_and_applescript() {
+        assert_eq!(shell_quote("it's"), "'it'\\''s'");
+        assert_eq!(applescript_string("say \"hi\""), "\"say \\\"hi\\\"\"");
+    }
 }

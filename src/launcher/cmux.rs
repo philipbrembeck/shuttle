@@ -127,6 +127,27 @@ mod tests {
     }
 
     #[test]
+    fn builds_virtual_cli_args() {
+        assert_eq!(
+            cli_args("/bin/cmux".into(), &request(LaunchTarget::Virtual)),
+            ["/bin/cmux", "run", "--background", "ssh prod"]
+        );
+    }
+
+    #[test]
+    fn uses_cmux_binary_environment_override() {
+        std::env::set_var("CMUX_BINARY", "/tmp/custom-cmux");
+        assert_eq!(default_binary().unwrap(), PathBuf::from("/tmp/custom-cmux"));
+        std::env::remove_var("CMUX_BINARY");
+    }
+
+    #[test]
+    fn uses_default_socket_path() {
+        std::env::remove_var("CMUX_SOCKET_PATH");
+        assert_eq!(socket_path().unwrap(), PathBuf::from("/tmp/cmux.sock"));
+    }
+
+    #[test]
     fn serializes_newline_delimited_socket_request() {
         assert_eq!(
             socket_request(7, "surface.send", json!({"text":"hi"})),
@@ -137,6 +158,8 @@ mod tests {
     #[test]
     fn builds_socket_launch_request() {
         assert!(socket_launch_request(1, &request(LaunchTarget::New)).contains("workspace.send"));
+        assert!(socket_launch_request(1, &request(LaunchTarget::Current)).contains("surface.send"));
+        assert!(socket_launch_request(1, &request(LaunchTarget::Virtual)).contains("command.run"));
     }
 
     #[test]

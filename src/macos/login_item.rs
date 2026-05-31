@@ -2,7 +2,7 @@
 
 /// Register or deregister Shuttle as a login item via macOS System Events.
 /// Uses osascript so it works on all macOS versions without extra framework linking.
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 pub fn set_launch_at_login(enabled: bool) -> Result<(), String> {
     let path = bundle_path().ok_or_else(|| "Could not determine app bundle path".to_string())?;
 
@@ -13,28 +13,7 @@ pub fn set_launch_at_login(enabled: bool) -> Result<(), String> {
         );
     }
 
-    let script = if enabled {
-        format!(
-            r#"tell application "System Events"
-    set loginItems to get login items
-    repeat with i in loginItems
-        if path of i is "{path}" then return
-    end repeat
-    make new login item at end of login items with properties {{path:"{path}", hidden:false}}
-end tell"#
-        )
-    } else {
-        format!(
-            r#"tell application "System Events"
-    repeat with i in get login items
-        if path of i is "{path}" then
-            delete i
-            return
-        end if
-    end repeat
-end tell"#
-        )
-    };
+    let script = launch_at_login_script(enabled, &path);
 
     let status = std::process::Command::new("osascript")
         .arg("-e")
@@ -55,6 +34,32 @@ pub fn set_launch_at_login(_enabled: bool) -> Result<(), String> {
 }
 
 #[cfg(target_os = "macos")]
+fn launch_at_login_script(enabled: bool, path: &str) -> String {
+    if enabled {
+        format!(
+            r#"tell application "System Events"
+    set loginItems to get login items
+    repeat with i in loginItems
+        if path of i is "{path}" then return
+    end repeat
+    make new login item at end of login items with properties {{path:"{path}", hidden:false}}
+end tell"#
+        )
+    } else {
+        format!(
+            r#"tell application "System Events"
+    repeat with i in get login items
+        if path of i is "{path}" then
+            delete i
+            return
+        end if
+    end repeat
+end tell"#
+        )
+    }
+}
+
+#[cfg(all(target_os = "macos", not(test)))]
 fn bundle_path() -> Option<String> {
     use objc::{class, msg_send, sel, sel_impl};
     unsafe {
@@ -85,5 +90,17 @@ mod tests {
     fn non_macos_stub_is_safe() {
         #[cfg(not(target_os = "macos"))]
         super::set_launch_at_login(false).unwrap();
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn builds_launch_at_login_scripts() {
+        let enable = super::launch_at_login_script(true, "/Applications/Shuttle.app");
+        assert!(enable.contains("make new login item"));
+        assert!(enable.contains("/Applications/Shuttle.app"));
+
+        let disable = super::launch_at_login_script(false, "/Applications/Shuttle.app");
+        assert!(disable.contains("delete i"));
+        assert!(disable.contains("get login items"));
     }
 }

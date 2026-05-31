@@ -1,10 +1,15 @@
 #![allow(deprecated, unexpected_cfgs)]
 
+#[cfg(not(test))]
 use cocoa::appkit::{NSApp, NSApplication, NSApplicationActivationPolicyAccessory};
+#[cfg(not(test))]
 use cocoa::base::{id, nil, YES};
+#[cfg(not(test))]
 use cocoa::foundation::NSAutoreleasePool;
+#[cfg(not(test))]
 use objc::{class, msg_send, sel, sel_impl};
 
+#[cfg(not(test))]
 pub fn run() {
     unsafe {
         let _pool = NSAutoreleasePool::new(nil);

@@ -41,6 +41,7 @@ Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY
 - `./scripts/check-rust.sh` MUST pass; it runs format check, Clippy with `-D warnings`, tests, `cargo check`, and default JSON validation.
 - If you change behavior, you MUST add or update tests in the same change.
 - If you change config, menu, SSH import, launcher, or compatibility behavior, you MUST cover it with unit tests.
+- Code Coverage SHOULD be >80% for new code; you MUST add or modify tests to reach that threshold.
 - If you edit `resources/shuttle.default.json`, you MUST run `python3 -m json.tool resources/shuttle.default.json >/dev/null`.
 - If you edit `tests/.shuttle.json`, you MUST run `python3 -m json.tool tests/.shuttle.json >/dev/null`.
 - If you build the app bundle, use `./scripts/build-rust-app.sh`; output belongs under `target/release/Shuttle.app`.
@@ -50,6 +51,8 @@ Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY
 - You MUST keep modules small, typed, and aligned with existing domain concepts (`Config`, host entries, menu entries, launch requests, backends).
 - You MUST NOT add dead code.
 - You MUST NOT add unused `#![allow(dead_code)]`, `#![allow(unused)]`, or equivalent broad suppressions.
+- You MUST NOT use `unwrap()`, `expect()`, or similar panicking code; handle errors explicitly.
+- You MUST NOT use `#[allow(unsafe_code)]` or `unsafe` blocks without a comment explaining why it's necessary and how safety is ensured.
 - Shuttle SHOULD use as few dependencies as possible; add new dependencies only when they are clearly needed.
 - You MUST add or update direct dependencies with Cargo CLI commands (`cargo add`, `cargo update`), not by editing `Cargo.toml` manually, so Cargo resolves the latest appropriate version.
 - You SHOULD prefer explicit error types with actionable messages.
