@@ -48,6 +48,8 @@ Rust-native macOS menu-bar app. RFC 2119 meanings apply to MUST, SHOULD, and MAY
 - You MUST keep modules small, typed, and aligned with existing domain concepts (`Config`, host entries, menu entries, launch requests, backends).
 - You MUST NOT add dead code.
 - You MUST NOT add unused `#![allow(dead_code)]`, `#![allow(unused)]`, or equivalent broad suppressions.
+- Shuttle SHOULD use as few dependencies as possible; add new dependencies only when they are clearly needed.
+- You MUST add or update direct dependencies with Cargo CLI commands (`cargo add`, `cargo update`), not by editing `Cargo.toml` manually, so Cargo resolves the latest appropriate version.
 - You SHOULD prefer explicit error types with actionable messages.
 - You SHOULD prefer argument vectors and structured data over shell-string construction.
 - You MUST keep JSON examples strict JSON.
