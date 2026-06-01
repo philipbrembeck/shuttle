@@ -1,15 +1,20 @@
-#![allow(deprecated, unexpected_cfgs, dead_code)]
+#![allow(deprecated, unexpected_cfgs)]
 
 use crate::config::model::Config;
 use crate::launcher::{Backend, ITermVersion, LaunchKind, LaunchTarget};
 use crate::menu_model::MenuEntry;
+#[cfg(not(test))]
 use cocoa::appkit::{NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength};
+#[cfg(not(test))]
 use cocoa::base::{id, nil, NO, YES};
+#[cfg(not(test))]
 use cocoa::foundation::{NSAutoreleasePool, NSString};
+#[cfg(not(test))]
 use objc::{class, msg_send, sel, sel_impl};
 
 // ── Public spec type (used in tests without AppKit) ──────────────────────────
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NativeMenuSpec {
     Menu {
@@ -23,6 +28,7 @@ pub enum NativeMenuSpec {
     Separator,
 }
 
+#[cfg(test)]
 pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
     entries
         .iter()
@@ -49,7 +55,7 @@ pub fn build_spec(entries: &[MenuEntry]) -> Vec<NativeMenuSpec> {
 // ── Native menu construction ──────────────────────────────────────────────────
 
 /// Rebuild and replace the menu on an existing status item (called on hot reload).
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 pub unsafe fn rebuild_menu(status_item: id, entries: &[MenuEntry], config: &Config, delegate: id) {
     use cocoa::appkit::NSStatusItem;
     let _pool = cocoa::foundation::NSAutoreleasePool::new(nil);
@@ -57,7 +63,7 @@ pub unsafe fn rebuild_menu(status_item: id, entries: &[MenuEntry], config: &Conf
     status_item.setMenu_(menu);
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) -> id {
     let menu = build_ns_menu(entries, config);
 
@@ -115,7 +121,7 @@ unsafe fn build_full_menu(entries: &[MenuEntry], config: &Config, delegate: id) 
     menu
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 pub fn install_status_menu(entries: &[MenuEntry], config: &Config, delegate: id) -> id {
     unsafe {
         let menu = build_full_menu(entries, config, delegate);
@@ -146,7 +152,7 @@ pub fn install_status_menu(entries: &[MenuEntry], config: &Config, delegate: id)
 
 // ── Recursive menu builder ────────────────────────────────────────────────────
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 unsafe fn build_ns_menu(entries: &[MenuEntry], config: &Config) -> id {
     let menu = NSMenu::new(nil).autorelease();
     let _: () = msg_send![menu, setAutoenablesItems: NO];
@@ -185,7 +191,7 @@ unsafe fn build_ns_menu(entries: &[MenuEntry], config: &Config) -> id {
 }
 
 /// Build an NSMenuItem that fires ShuttleAction.launch: on click.
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 unsafe fn command_item(title: &str, cmd: &str, backend: &str) -> id {
     let action = crate::macos::action::create_action(cmd, backend);
     let item = NSMenuItem::alloc(nil)
@@ -201,7 +207,7 @@ unsafe fn command_item(title: &str, cmd: &str, backend: &str) -> id {
 }
 
 /// Build a non-clickable (or action-less) NSMenuItem.
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 unsafe fn static_item(title: &str, enabled: bool) -> id {
     let item = NSMenuItem::alloc(nil)
         .initWithTitle_action_keyEquivalent_(
@@ -215,7 +221,7 @@ unsafe fn static_item(title: &str, enabled: bool) -> id {
     item
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
     NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
         NSString::alloc(nil).init_str(title),
@@ -227,6 +233,9 @@ unsafe fn titled_action_item(title: &str, action: objc::runtime::Sel) -> id {
 // ── Backend resolution ────────────────────────────────────────────────────────
 
 /// Returns the executor backend string for a given command and config.
+// NOTE: The ObjC action target stores this serialized payload on NSMenuItem
+// actions, so `executor::execute` must deserialize the same backend/target
+// strings below. Keep both sides in sync when adding launcher variants.
 fn resolve_launch_payload(
     config: &Config,
     host: &crate::config::model::CommandHost,

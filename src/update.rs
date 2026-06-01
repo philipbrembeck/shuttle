@@ -1,7 +1,9 @@
 use serde::Deserialize;
 use std::cmp::Ordering;
+#[cfg(not(test))]
 use std::process::Command;
 
+#[cfg(not(test))]
 const LATEST_RELEASE_API: &str =
     "https://api.github.com/repos/philipbrembeck/shuttle/releases/latest";
 const RELEASES_URL: &str = "https://github.com/philipbrembeck/shuttle/releases/latest";
@@ -31,6 +33,7 @@ pub enum UpdateStatus {
     },
 }
 
+#[cfg(not(test))]
 pub fn check_latest_release(current_version: &str) -> Result<UpdateStatus, String> {
     let output = Command::new("/usr/bin/curl")
         .args([
@@ -58,8 +61,19 @@ pub fn check_latest_release(current_version: &str) -> Result<UpdateStatus, Strin
         });
     }
 
-    let release: GitHubRelease = serde_json::from_slice(&output.stdout)
+    status_from_release_json(current_version, &output.stdout)
+}
+
+fn status_from_release_json(current_version: &str, json: &[u8]) -> Result<UpdateStatus, String> {
+    let release: GitHubRelease = serde_json::from_slice(json)
         .map_err(|error| format!("GitHub returned an unexpected response: {error}"))?;
+    status_from_release(current_version, release)
+}
+
+fn status_from_release(
+    current_version: &str,
+    release: GitHubRelease,
+) -> Result<UpdateStatus, String> {
     let latest = release.tag_name.trim_start_matches('v').to_string();
     let page_url = release.html_url.unwrap_or_else(|| RELEASES_URL.to_string());
     let download_url = release
@@ -80,7 +94,7 @@ pub fn check_latest_release(current_version: &str) -> Result<UpdateStatus, Strin
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 pub fn check_for_updates_async() {
     std::thread::spawn(|| {
         let current = env!("CARGO_PKG_VERSION");
@@ -128,7 +142,7 @@ pub fn check_for_updates_async() {
     });
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 fn ask_update_choice(latest: &str, current: &str) -> Result<String, String> {
     let message = applescript_string(&format!(
         "Shuttle {latest} is available. You are running {current}. Install it now?"
@@ -148,7 +162,7 @@ fn ask_update_choice(latest: &str, current: &str) -> Result<String, String> {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 fn install_update(download_url: &str, app_path: &std::path::Path) -> Result<(), String> {
     let tmp = std::env::temp_dir().join(format!("shuttle-update-{}", std::process::id()));
     let zip = tmp.join("Shuttle.zip");
@@ -211,7 +225,7 @@ fn install_update(download_url: &str, app_path: &std::path::Path) -> Result<(), 
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 fn current_app_bundle() -> Option<std::path::PathBuf> {
     let mut path = std::env::current_exe().ok()?;
     while path.pop() {
@@ -278,5 +292,67 @@ mod tests {
         assert_eq!(compare_versions("0.3.2", "0.3.1"), Ordering::Greater);
         assert_eq!(compare_versions("0.3", "0.3.0"), Ordering::Equal);
         assert_eq!(compare_versions("0.2.9", "0.3.0"), Ordering::Less);
+        assert_eq!(compare_versions("0.3-beta", "0.3.0"), Ordering::Equal);
+        assert_eq!(version_parts("1.2-alpha"), vec![1, 2, 0]);
+    }
+
+    #[test]
+    fn parses_available_release_response() {
+        let json = br#"{
+            "tag_name":"v9.9.9",
+            "html_url":"https://example.com/release",
+            "assets":[
+                {"name":"notes.txt","browser_download_url":"https://example.com/notes"},
+                {"name":"Shuttle.zip","browser_download_url":"https://example.com/Shuttle.zip"}
+            ]
+        }"#;
+        assert_eq!(
+            status_from_release_json("0.1.0", json).unwrap(),
+            UpdateStatus::Available {
+                latest: "9.9.9".into(),
+                page_url: "https://example.com/release".into(),
+                download_url: "https://example.com/Shuttle.zip".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_current_release_response_with_default_page() {
+        let json = br#"{
+            "tag_name":"v0.5.1",
+            "html_url":null,
+            "assets":[{"name":"Shuttle.zip","browser_download_url":"https://example.com/Shuttle.zip"}]
+        }"#;
+        assert_eq!(
+            status_from_release_json("0.5.1", json).unwrap(),
+            UpdateStatus::Current {
+                latest: "0.5.1".into()
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_bad_release_responses() {
+        assert!(status_from_release_json("0.1.0", b"not json").is_err());
+        let json = br#"{"tag_name":"v1.0.0","html_url":null,"assets":[]}"#;
+        assert_eq!(
+            status_from_release_json("0.1.0", json).unwrap_err(),
+            "Latest GitHub release has no Shuttle.zip asset"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn builds_update_scripts_safely() {
+        assert_eq!(applescript_string("say \"hi\""), "\"say \\\"hi\\\"\"");
+        assert_eq!(
+            open_url_script("https://example.com"),
+            "open location \"https://example.com\""
+        );
+        assert!(update_error_script("bad").contains("with icon caution"));
+        assert_eq!(
+            shell_quote(std::path::Path::new("/tmp/it's.app")),
+            "'/tmp/it'\\''s.app'"
+        );
     }
 }

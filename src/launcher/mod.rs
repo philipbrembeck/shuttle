@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 pub mod cmux;
 pub mod ghostty;
 pub mod iterm;

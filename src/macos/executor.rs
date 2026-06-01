@@ -1,6 +1,8 @@
+#[cfg(not(test))]
 use serde::Deserialize;
 use std::process::Command;
 
+#[cfg(not(test))]
 #[derive(Debug, Deserialize)]
 struct TerminalPayload {
     kind: String,
@@ -12,6 +14,7 @@ struct TerminalPayload {
 
 /// Top-level dispatch. `backend` is a resolved backend string (e.g. "ghostty-open",
 /// "terminal-app", "iterm-stable"). `cmd` is the raw command from the config.
+#[cfg(not(test))]
 pub fn execute(cmd: &str, backend: &str) {
     let cmd = normalize_cmd(cmd);
     if let Ok(payload) = serde_json::from_str::<TerminalPayload>(backend) {
@@ -36,6 +39,7 @@ pub fn execute(cmd: &str, backend: &str) {
     }
 }
 
+#[cfg(not(test))]
 fn execute_terminal_payload(cmd: &str, payload: &TerminalPayload) {
     match payload.backend.as_str() {
         "ghostty-open" => launch_ghostty_open(cmd, &payload.title),
@@ -67,45 +71,65 @@ fn normalize_cmd(cmd: &str) -> String {
 
 // ── URL ───────────────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_url(url: &str) {
-    Command::new("open").arg(url).spawn().ok();
+    open_url_command(url).spawn().ok();
+}
+
+fn open_url_command(url: &str) -> Command {
+    let mut command = Command::new("open");
+    command.arg(url);
+    command
 }
 
 // ── Ghostty ───────────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_ghostty_open(cmd: &str, title: &str) {
-    // open -na Ghostty.app --args -e sh -c "cmd"
-    // Using sh -c so multi-part commands and quoting work correctly.
-    Command::new("open")
-        .args([
-            "-na",
-            "Ghostty.app",
-            "--args",
-            "--title",
-            title,
-            "-e",
-            "sh",
-            "-c",
-            cmd,
-        ])
-        .spawn()
-        .ok();
+    ghostty_open_command(cmd, title).spawn().ok();
 }
 
+fn ghostty_open_command(cmd: &str, title: &str) -> Command {
+    // open -na Ghostty.app --args -e sh -c "cmd"
+    // Using sh -c so multi-part commands and quoting work correctly.
+    let mut command = Command::new("open");
+    command.args([
+        "-na",
+        "Ghostty.app",
+        "--args",
+        "--title",
+        title,
+        "-e",
+        "sh",
+        "-c",
+        cmd,
+    ]);
+    command
+}
+
+#[cfg(not(test))]
 fn launch_ghostty_applescript(cmd: &str, target: &str) {
+    run_osascript(&ghostty_applescript(cmd, target));
+}
+
+fn ghostty_applescript(cmd: &str, target: &str) -> String {
     let escaped = escape_for_applescript(cmd);
     let action = match target {
         "tab" => "create tab with command",
         "current" => "run command",
         _ => "create window with command",
     };
-    let script = format!(r#"tell application "Ghostty" to {action} "{escaped}""#);
-    run_osascript(&script);
+    format!(r#"tell application "Ghostty" to {action} "{escaped}""#)
 }
 
 // ── Terminal.app ──────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_terminal_app(cmd: &str, target: &str, theme: &str, title: &str) {
+    run_osascript(&terminal_app_script(cmd, target, theme, title));
+}
+
+fn terminal_app_script(cmd: &str, target: &str, theme: &str, title: &str) -> String {
     let escaped = escape_for_applescript(cmd);
     let theme = escape_for_applescript(theme);
     let title = escape_for_applescript(title);
@@ -114,7 +138,7 @@ fn launch_terminal_app(cmd: &str, target: &str, theme: &str, title: &str) {
         "tab" => format!("do script \"{escaped}\" in (do script \"\")"),
         _ => format!("do script \"{escaped}\""),
     };
-    let script = format!(
+    format!(
         r#"tell application "Terminal"
     activate
     {target_script}
@@ -123,13 +147,17 @@ fn launch_terminal_app(cmd: &str, target: &str, theme: &str, title: &str) {
         set custom title of selected tab of front window to "{title}"
     end try
 end tell"#
-    );
-    run_osascript(&script);
+    )
 }
 
 // ── iTerm ─────────────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_iterm(cmd: &str, nightly: bool, target: &str, profile: &str) {
+    run_osascript(&iterm_script(cmd, nightly, target, profile));
+}
+
+fn iterm_script(cmd: &str, nightly: bool, target: &str, profile: &str) -> String {
     let escaped = escape_for_applescript(cmd);
     let profile = escape_for_applescript(profile);
     let app = if nightly { "iTerm" } else { "iTerm2" };
@@ -140,17 +168,17 @@ fn launch_iterm(cmd: &str, nightly: bool, target: &str, profile: &str) {
         ),
         _ => format!("create window with profile \"{profile}\" command \"{escaped}\""),
     };
-    let script = format!(
+    format!(
         r#"tell application "{app}"
     activate
     {launch}
 end tell"#
-    );
-    run_osascript(&script);
+    )
 }
 
 // ── cmux ──────────────────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_cmux_cli(cmd: &str, target: &str, title: &str) {
     let binary = crate::launcher::cmux::default_binary()
         .unwrap_or_else(|_| std::path::PathBuf::from("cmux"));
@@ -167,6 +195,7 @@ fn launch_cmux_cli(cmd: &str, target: &str, title: &str) {
     };
 }
 
+#[cfg(not(test))]
 fn launch_cmux_socket(cmd: &str, target: &str, title: &str) {
     if let Ok(path) = crate::launcher::cmux::socket_path() {
         let (method, params) = match target {
@@ -187,20 +216,25 @@ fn launch_cmux_socket(cmd: &str, target: &str, title: &str) {
 
 // ── Virtual / screen ─────────────────────────────────────────────────────────
 
+#[cfg(not(test))]
 fn launch_screen(cmd: &str, title: &str) {
-    Command::new("screen")
-        .args(["-d", "-m", "-S", title, "sh", "-lc", cmd])
-        .spawn()
-        .ok();
+    screen_command(cmd, title).spawn().ok();
+}
+
+fn screen_command(cmd: &str, title: &str) -> Command {
+    let mut command = Command::new("screen");
+    command.args(["-d", "-m", "-S", title, "sh", "-lc", cmd]);
+    command
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Escape a string for embedding inside an AppleScript double-quoted string.
 fn escape_for_applescript(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+    crate::macos::util::escape_for_applescript(s)
 }
 
+#[cfg(not(test))]
 fn run_osascript(script: &str) {
     Command::new("osascript").arg("-e").arg(script).spawn().ok();
 }
@@ -218,5 +252,59 @@ mod tests {
     #[test]
     fn escapes_quotes_and_backslashes() {
         assert_eq!(escape_for_applescript(r#"echo "hi""#), r#"echo \"hi\""#);
+        assert_eq!(escape_for_applescript(r#"C:\tmp"#), r#"C:\\tmp"#);
+    }
+
+    #[test]
+    fn builds_open_and_screen_commands() {
+        let open = open_url_command("https://example.com");
+        assert_eq!(open.get_program(), "open");
+        assert_eq!(open.get_args().collect::<Vec<_>>(), ["https://example.com"]);
+
+        let screen = screen_command("ssh prod", "Prod");
+        assert_eq!(screen.get_program(), "screen");
+        assert_eq!(
+            screen.get_args().collect::<Vec<_>>(),
+            ["-d", "-m", "-S", "Prod", "sh", "-lc", "ssh prod"]
+        );
+    }
+
+    #[test]
+    fn builds_ghostty_open_command() {
+        let command = ghostty_open_command("ssh prod", "Prod");
+        assert_eq!(command.get_program(), "open");
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            [
+                "-na",
+                "Ghostty.app",
+                "--args",
+                "--title",
+                "Prod",
+                "-e",
+                "sh",
+                "-c",
+                "ssh prod",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_applescripts_for_targets() {
+        assert!(ghostty_applescript("ssh prod", "tab").contains("create tab with command"));
+        assert!(ghostty_applescript("ssh prod", "current").contains("run command"));
+        assert!(ghostty_applescript("ssh prod", "new").contains("create window with command"));
+
+        assert!(terminal_app_script("ssh prod", "current", "Basic", "Prod")
+            .contains("selected tab of front window"));
+        assert!(
+            terminal_app_script("ssh prod", "tab", "Basic", "Prod").contains("in (do script \"\")")
+        );
+        assert!(terminal_app_script("ssh prod", "new", "Basic", "Prod")
+            .contains("settings set \"Basic\""));
+
+        assert!(iterm_script("ssh prod", false, "new", "Default").contains("iTerm2"));
+        assert!(iterm_script("ssh prod", true, "tab", "Default").contains("create tab"));
+        assert!(iterm_script("ssh prod", true, "current", "Default").contains("write text"));
     }
 }

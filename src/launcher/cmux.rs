@@ -1,3 +1,4 @@
+#[cfg(test)]
 use super::{LaunchRequest, LaunchTarget};
 use serde_json::json;
 use std::env;
@@ -32,6 +33,7 @@ pub fn default_binary() -> Result<PathBuf, CmuxError> {
         .ok_or(CmuxError::MissingBinary)
 }
 
+#[cfg(test)]
 pub fn cli_args(binary: PathBuf, request: &LaunchRequest) -> Vec<String> {
     let mut args = vec![binary.to_string_lossy().into_owned()];
     match request.target {
@@ -76,6 +78,7 @@ pub fn send_socket_request(path: &Path, request: &str) -> std::io::Result<String
     Ok(response)
 }
 
+#[cfg(test)]
 pub fn socket_launch_request(id: u64, request: &LaunchRequest) -> String {
     match request.target {
         LaunchTarget::New | LaunchTarget::Tab => socket_request(
@@ -98,6 +101,9 @@ pub fn socket_launch_request(id: u64, request: &LaunchRequest) -> String {
 mod tests {
     use super::*;
     use crate::launcher::{Backend, LaunchStrategy};
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn request(target: LaunchTarget) -> LaunchRequest {
         LaunchRequest {
@@ -127,6 +133,33 @@ mod tests {
     }
 
     #[test]
+    fn builds_virtual_cli_args() {
+        assert_eq!(
+            cli_args("/bin/cmux".into(), &request(LaunchTarget::Virtual)),
+            ["/bin/cmux", "run", "--background", "ssh prod"]
+        );
+    }
+
+    #[test]
+    fn uses_cmux_binary_environment_override() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        std::env::set_var("CMUX_BINARY", "/tmp/custom-cmux");
+        assert_eq!(default_binary().unwrap(), PathBuf::from("/tmp/custom-cmux"));
+        std::env::remove_var("CMUX_BINARY");
+    }
+
+    #[test]
+    fn uses_default_socket_path() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        std::env::remove_var("CMUX_SOCKET_PATH");
+        assert_eq!(socket_path().unwrap(), PathBuf::from("/tmp/cmux.sock"));
+    }
+
+    #[test]
     fn serializes_newline_delimited_socket_request() {
         assert_eq!(
             socket_request(7, "surface.send", json!({"text":"hi"})),
@@ -137,6 +170,8 @@ mod tests {
     #[test]
     fn builds_socket_launch_request() {
         assert!(socket_launch_request(1, &request(LaunchTarget::New)).contains("workspace.send"));
+        assert!(socket_launch_request(1, &request(LaunchTarget::Current)).contains("surface.send"));
+        assert!(socket_launch_request(1, &request(LaunchTarget::Virtual)).contains("command.run"));
     }
 
     #[test]

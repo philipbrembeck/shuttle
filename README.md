@@ -5,7 +5,7 @@
 <h1 align="center">Shuttle</h1>
 
 <p align="center">
-  A Rust rewrite of the classic macOS Shuttle menu-bar app for launching SSH sessions, terminal commands, and URLs from a simple JSON config.
+  A Rust rewrite of the classic macOS Shuttle menu-bar app for launching SSH sessions, terminal commands, and URLs from a simple JSON config, with experimental YAML support.
 </p>
 
 <p align="center">
@@ -67,13 +67,13 @@ open /Applications/Shuttle.app
 
 ## First run
 
-On first launch, Shuttle creates a config file at:
+On first launch, Shuttle creates a stable JSON config file at:
 
 ```text
 ~/.config/shuttle/config.json
 ```
 
-Open the menu-bar icon and choose **Configuration** to edit, import, or export your config.
+Open the menu-bar icon and choose **Configuration** to edit, import, or export your config. JSON remains the generated default and backwards-compatible format.
 
 ## Quick config example
 
@@ -96,6 +96,42 @@ Open the menu-bar icon and choose **Configuration** to edit, import, or export y
 ```
 
 Save the file, then reopen the Shuttle menu. The app reloads when the config changes.
+
+### Experimental YAML config
+
+YAML is available as an experimental, opt-in format for hand-written configs. Shuttle never creates YAML automatically, but if you create one of the standard YAML files it takes precedence over the standard JSON file.
+
+Main config precedence:
+
+1. `~/.shuttle.path`
+2. `~/.config/shuttle/config.yaml`
+3. `~/.config/shuttle/config.yml`
+4. `~/.config/shuttle/config.json`
+5. legacy `~/.shuttle.json` migration/fallback
+
+Alternate config precedence:
+
+1. `~/.shuttle-alt.path`
+2. `~/.config/shuttle/alt.yaml`
+3. `~/.config/shuttle/alt.yml`
+4. `~/.config/shuttle/alt.json`
+5. legacy `~/.shuttle-alt.json`
+
+Use JSON for stable/default/backwards-compatible configs, machine-generated configs, and existing `jq` or `python3 -m json.tool` workflows. Use YAML for hand-written configs where comments and deeply nested menus are easier to maintain, accepting its experimental status.
+
+A copyable YAML example is available at [`resources/shuttle.example.yaml`](resources/shuttle.example.yaml):
+
+```yaml
+terminal: Ghostty
+open_in: tab
+show_ssh_config_hosts: true
+hosts:
+  - cmd: ssh prod.example.com
+    name: Production
+  - Engineering:
+      - cmd: ssh web-1.staging
+        name: Web 1
+```
 
 ## Config basics
 
@@ -173,13 +209,15 @@ To use a custom main config path:
 echo '/path/to/config.json' > ~/.shuttle.path
 ```
 
+Override files must point to paths ending in `.json`, `.yaml`, or `.yml`; missing or unknown extensions fail with a config error.
+
 Remove it to return to the default:
 
 ```sh
 rm ~/.shuttle.path
 ```
 
-An optional alternate config can live at `~/.shuttle-alt.path`, `~/.config/shuttle/alt.json`, or legacy `~/.shuttle-alt.json`. Alternate hosts are appended to the main menu.
+An optional alternate config can live at `~/.shuttle-alt.path`, `~/.config/shuttle/alt.yaml`, `~/.config/shuttle/alt.yml`, `~/.config/shuttle/alt.json`, or legacy `~/.shuttle-alt.json`. Alternate hosts are appended to the main menu.
 
 Legacy `~/.shuttle.json` is migrated automatically to `~/.config/shuttle/config.json` when no new config exists yet.
 

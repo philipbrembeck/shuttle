@@ -1,6 +1,10 @@
+#[cfg(test)]
 use super::{LaunchRequest, LaunchTarget};
+#[cfg(test)]
+#[cfg(test)]
 use thiserror::Error;
 
+#[cfg(test)]
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum GhosttyError {
     #[error(
@@ -13,6 +17,7 @@ pub enum GhosttyError {
     AppleScriptUnavailable,
 }
 
+#[cfg(test)]
 pub fn detect_application() -> Result<(), GhosttyError> {
     if std::path::Path::new("/Applications/Ghostty.app").exists() {
         Ok(())
@@ -21,10 +26,12 @@ pub fn detect_application() -> Result<(), GhosttyError> {
     }
 }
 
+#[cfg(test)]
 pub fn automation_denied_error() -> GhosttyError {
     GhosttyError::AppleScriptUnavailable
 }
 
+#[cfg(test)]
 pub fn open_args(request: &LaunchRequest) -> Result<Vec<String>, GhosttyError> {
     if request.target != LaunchTarget::New {
         return Err(GhosttyError::UnsupportedOpenTarget(request.target.clone()));
@@ -45,8 +52,9 @@ pub fn open_args(request: &LaunchRequest) -> Result<Vec<String>, GhosttyError> {
     Ok(args)
 }
 
+#[cfg(test)]
 pub fn applescript_source(request: &LaunchRequest) -> String {
-    let command = request.command.replace('"', "\\\"");
+    let command = crate::macos::util::escape_for_applescript(&request.command);
     match request.target {
         LaunchTarget::New => {
             format!("tell application \"Ghostty\" to create window with command \"{command}\"")
@@ -83,6 +91,11 @@ mod tests {
     fn missing_app_has_actionable_error() {
         let error = GhosttyError::MissingApplication.to_string();
         assert!(error.contains("install Ghostty"));
+        assert_eq!(
+            automation_denied_error(),
+            GhosttyError::AppleScriptUnavailable
+        );
+        let _ = detect_application();
     }
 
     #[test]
@@ -116,7 +129,18 @@ mod tests {
 
     #[test]
     fn builds_applescript_for_targets() {
+        assert!(applescript_source(&request(LaunchTarget::New)).contains("create window"));
         assert!(applescript_source(&request(LaunchTarget::Tab)).contains("create tab"));
         assert!(applescript_source(&request(LaunchTarget::Current)).contains("run command"));
+        assert!(applescript_source(&request(LaunchTarget::Virtual))
+            .contains("does not support virtual"));
+    }
+
+    #[test]
+    fn escapes_quotes_and_backslashes_in_applescript() {
+        let mut req = request(LaunchTarget::New);
+        req.command = r#"echo "hi" && cd C:\tmp"#.into();
+        let script = applescript_source(&req);
+        assert!(script.contains(r#"echo \"hi\" && cd C:\\tmp"#));
     }
 }

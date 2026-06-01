@@ -1,5 +1,7 @@
+#[cfg(test)]
 use super::LaunchRequest;
 
+#[cfg(test)]
 pub fn screen_args(request: &LaunchRequest) -> Vec<String> {
     vec![
         "screen".into(),

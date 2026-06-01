@@ -1,5 +1,7 @@
+#[cfg(test)]
 use super::{LaunchRequest, LaunchTarget};
 
+#[cfg(test)]
 pub fn applescript_resource(request: &LaunchRequest) -> &'static str {
     match request.target {
         LaunchTarget::New => "terminal-new-window.scpt",
@@ -9,6 +11,7 @@ pub fn applescript_resource(request: &LaunchRequest) -> &'static str {
     }
 }
 
+#[cfg(test)]
 pub fn script_parameters(request: &LaunchRequest) -> Vec<String> {
     if request.target == LaunchTarget::Virtual {
         vec![request.command.clone(), request.title.clone()]
