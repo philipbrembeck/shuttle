@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/philipbrembeck/shuttle/compare/v0.5.1...v0.6.0) (2026-06-01)
+
+
+### Features
+
+* add experimental yaml config ([#26](https://github.com/philipbrembeck/shuttle/issues/26)) ([0b65344](https://github.com/philipbrembeck/shuttle/commit/0b653440e76e9ced9a7e6a9f9ad0ef635c798dcc))
+
 ## [0.5.1](https://github.com/philipbrembeck/shuttle/compare/v0.5.0...v0.5.1) (2026-05-29)
 
 
