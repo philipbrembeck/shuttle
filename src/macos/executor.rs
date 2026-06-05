@@ -90,11 +90,12 @@ fn launch_ghostty_open(cmd: &str, title: &str) {
 }
 
 fn ghostty_open_command(cmd: &str, title: &str) -> Command {
-    // open -na Ghostty.app --args -e sh -c "cmd"
+    // open -a Ghostty.app --args -e sh -c "cmd"
+    // Do not pass -n: that forces macOS to launch a separate Ghostty instance.
     // Using sh -c so multi-part commands and quoting work correctly.
     let mut command = Command::new("open");
     command.args([
-        "-na",
+        "-a",
         "Ghostty.app",
         "--args",
         "--title",
@@ -276,7 +277,7 @@ mod tests {
         assert_eq!(
             command.get_args().collect::<Vec<_>>(),
             [
-                "-na",
+                "-a",
                 "Ghostty.app",
                 "--args",
                 "--title",

@@ -268,6 +268,7 @@ fn home_dir() -> Result<PathBuf, ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::model::HostEntry;
 
     const MINIMAL_JSON: &str = r#"{"hosts":[{"cmd":"ssh prod","name":"Prod"}]}"#;
     const MINIMAL_YAML: &str = "hosts:\n  - cmd: ssh prod\n    name: Prod\n";
@@ -360,6 +361,41 @@ mod tests {
         fs::write(&path, MINIMAL_YAML).unwrap();
         let config = load_config(&path).unwrap();
         assert_eq!(config.hosts.len(), 1);
+    }
+
+    #[test]
+    fn command_hosts_do_not_require_title() {
+        let config: Config = serde_json::from_str(
+            r#"{
+                "hosts": [
+                    {
+                        "IONOS": [
+                            {
+                                "K8S": [
+                                    {
+                                        "cmd": "ssh root@85.215.50.134",
+                                        "inTerminal": "new",
+                                        "name": "K8S Worker Node 1 (Server VPS L Linux)",
+                                        "theme": "snazzy"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+        let HostEntry::Menu(ionos) = &config.hosts[0] else {
+            panic!("expected IONOS menu");
+        };
+        let HostEntry::Menu(k8s) = &ionos["IONOS"][0] else {
+            panic!("expected K8S menu");
+        };
+        let HostEntry::Command(host) = &k8s["K8S"][0] else {
+            panic!("expected command host");
+        };
+        assert_eq!(host.title, None);
     }
 
     #[test]

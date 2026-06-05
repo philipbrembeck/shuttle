@@ -39,7 +39,7 @@ pub fn open_args(request: &LaunchRequest) -> Result<Vec<String>, GhosttyError> {
 
     let mut args = vec![
         "open".into(),
-        "-na".into(),
+        "-a".into(),
         "Ghostty.app".into(),
         "--args".into(),
     ];
@@ -104,7 +104,7 @@ mod tests {
             open_args(&request(LaunchTarget::New)).unwrap(),
             [
                 "open",
-                "-na",
+                "-a",
                 "Ghostty.app",
                 "--args",
                 "--title",
