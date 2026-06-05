@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/philipbrembeck/shuttle/compare/v0.6.1...v0.6.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ghostty:** reuse running app instance ([#32](https://github.com/philipbrembeck/shuttle/issues/32)) ([5115a1f](https://github.com/philipbrembeck/shuttle/commit/5115a1fa88db40247501bc208fc98c58233f8338))
+
 ## [0.6.1](https://github.com/philipbrembeck/shuttle/compare/v0.6.0...v0.6.1) (2026-06-05)
 
 
