@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn ghostty_terminal_key_resolves_to_ghostty_open() {
+    fn ghostty_terminal_key_resolves_to_ghostty_applescript() {
         let config = Config {
             terminal: Some("ghostty".into()),
             ..Config::default()
@@ -361,7 +361,7 @@ mod tests {
         };
         assert!(resolve_launch_payload(&config, &host)
             .unwrap()
-            .contains("\"backend\":\"ghostty-open\""));
+            .contains("\"backend\":\"ghostty-applescript\""));
     }
 
     #[test]
