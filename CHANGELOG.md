@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/philipbrembeck/shuttle/compare/v0.6.0...v0.6.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* title validation, Ghostty opening behaviour  ([9d17cae](https://github.com/philipbrembeck/shuttle/commit/9d17cae22b4058ae420e8b66ea1070178a63fad1))
+
 ## [0.6.0](https://github.com/philipbrembeck/shuttle/compare/v0.5.1...v0.6.0) (2026-06-01)
 
 
