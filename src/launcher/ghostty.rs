@@ -56,15 +56,42 @@ pub fn open_args(request: &LaunchRequest) -> Result<Vec<String>, GhosttyError> {
 pub fn applescript_source(request: &LaunchRequest) -> String {
     let command = crate::macos::util::escape_for_applescript(&request.command);
     match request.target {
-        LaunchTarget::New => {
-            format!("tell application \"Ghostty\" to create window with command \"{command}\"")
-        }
-        LaunchTarget::Tab => {
-            format!("tell application \"Ghostty\" to create tab with command \"{command}\"")
-        }
-        LaunchTarget::Current => {
-            format!("tell application \"Ghostty\" to run command \"{command}\"")
-        }
+        LaunchTarget::New => format!(
+            r#"tell application "Ghostty"
+    activate
+    set cfg to new surface configuration
+    set command of cfg to "{command}"
+    set win to new window with configuration cfg
+end tell"#
+        ),
+        LaunchTarget::Tab => format!(
+            r#"tell application "Ghostty"
+    activate
+    set cfg to new surface configuration
+    set command of cfg to "{command}"
+    if (count of windows) = 0 then
+        set win to new window with configuration cfg
+    else
+        set win to front window
+        set newTab to new tab in win with configuration cfg
+        select tab newTab
+    end if
+end tell"#
+        ),
+        LaunchTarget::Current => format!(
+            r#"tell application "Ghostty"
+    activate
+    if (count of windows) = 0 then
+        set cfg to new surface configuration
+        set command of cfg to "{command}"
+        set win to new window with configuration cfg
+    else
+        set term to focused terminal of selected tab of front window
+        input text "{command}" to term
+        send key "enter" to term
+    end if
+end tell"#
+        ),
         LaunchTarget::Virtual => {
             format!("error \"Ghostty AppleScript does not support virtual target for {command}\"")
         }
@@ -129,9 +156,11 @@ mod tests {
 
     #[test]
     fn builds_applescript_for_targets() {
-        assert!(applescript_source(&request(LaunchTarget::New)).contains("create window"));
-        assert!(applescript_source(&request(LaunchTarget::Tab)).contains("create tab"));
-        assert!(applescript_source(&request(LaunchTarget::Current)).contains("run command"));
+        assert!(applescript_source(&request(LaunchTarget::New))
+            .contains("new window with configuration cfg"));
+        assert!(applescript_source(&request(LaunchTarget::Tab))
+            .contains("new tab in win with configuration cfg"));
+        assert!(applescript_source(&request(LaunchTarget::Current)).contains("input text"));
         assert!(applescript_source(&request(LaunchTarget::Virtual))
             .contains("does not support virtual"));
     }

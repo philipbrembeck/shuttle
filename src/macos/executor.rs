@@ -115,12 +115,44 @@ fn launch_ghostty_applescript(cmd: &str, target: &str) {
 
 fn ghostty_applescript(cmd: &str, target: &str) -> String {
     let escaped = escape_for_applescript(cmd);
-    let action = match target {
-        "tab" => "create tab with command",
-        "current" => "run command",
-        _ => "create window with command",
-    };
-    format!(r#"tell application "Ghostty" to {action} "{escaped}""#)
+    match target {
+        "tab" => format!(
+            r#"tell application "Ghostty"
+    activate
+    set cfg to new surface configuration
+    set command of cfg to "{escaped}"
+    if (count of windows) = 0 then
+        set win to new window with configuration cfg
+    else
+        set win to front window
+        set newTab to new tab in win with configuration cfg
+        select tab newTab
+    end if
+end tell"#
+        ),
+        "current" => format!(
+            r#"tell application "Ghostty"
+    activate
+    if (count of windows) = 0 then
+        set cfg to new surface configuration
+        set command of cfg to "{escaped}"
+        set win to new window with configuration cfg
+    else
+        set term to focused terminal of selected tab of front window
+        input text "{escaped}" to term
+        send key "enter" to term
+    end if
+end tell"#
+        ),
+        _ => format!(
+            r#"tell application "Ghostty"
+    activate
+    set cfg to new surface configuration
+    set command of cfg to "{escaped}"
+    set win to new window with configuration cfg
+end tell"#
+        ),
+    }
 }
 
 // ── Terminal.app ──────────────────────────────────────────────────────────────
@@ -292,9 +324,12 @@ mod tests {
 
     #[test]
     fn builds_applescripts_for_targets() {
-        assert!(ghostty_applescript("ssh prod", "tab").contains("create tab with command"));
-        assert!(ghostty_applescript("ssh prod", "current").contains("run command"));
-        assert!(ghostty_applescript("ssh prod", "new").contains("create window with command"));
+        assert!(ghostty_applescript("ssh prod", "tab")
+            .contains("new tab in win with configuration cfg"));
+        assert!(ghostty_applescript("ssh prod", "current").contains("input text"));
+        assert!(
+            ghostty_applescript("ssh prod", "new").contains("new window with configuration cfg")
+        );
 
         assert!(terminal_app_script("ssh prod", "current", "Basic", "Prod")
             .contains("selected tab of front window"));

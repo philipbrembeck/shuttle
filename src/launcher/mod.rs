@@ -142,8 +142,8 @@ fn resolve_backend(
             "iterm-nightly" => Ok(Backend::ITerm {
                 version: ITermVersion::Nightly,
             }),
-            "ghostty" | "ghostty-open" => Ok(Backend::GhosttyOpen),
-            "ghostty-applescript" => Ok(Backend::GhosttyAppleScript),
+            "ghostty" | "ghostty-applescript" => Ok(Backend::GhosttyAppleScript),
+            "ghostty-open" => Ok(Backend::GhosttyOpen),
             "cmux" | "cmux-cli" => Ok(Backend::CmuxCli),
             "cmux-socket" => Ok(Backend::CmuxSocket),
             "screen" | "virtual" => Ok(Backend::Screen),
@@ -157,7 +157,7 @@ fn resolve_backend(
         .unwrap_or("Terminal.app")
         .to_lowercase();
     if terminal.contains("ghostty") {
-        Ok(Backend::GhosttyOpen)
+        Ok(Backend::GhosttyAppleScript)
     } else if terminal.contains("cmux") {
         Ok(Backend::CmuxCli)
     } else if terminal.contains("iterm") {
@@ -331,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_key_ghostty_maps_to_ghostty_open() {
+    fn terminal_key_ghostty_maps_to_ghostty_applescript() {
         let config = Config {
             terminal: Some("Ghostty".into()),
             ..Config::default()
@@ -339,7 +339,7 @@ mod tests {
         let LaunchKind::Terminal(request) = normalize(&config, &host(), "Menu").unwrap() else {
             panic!("terminal expected")
         };
-        assert_eq!(request.backend, Backend::GhosttyOpen);
+        assert_eq!(request.backend, Backend::GhosttyAppleScript);
     }
 
     #[test]
